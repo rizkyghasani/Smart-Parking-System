@@ -1,0 +1,102 @@
+services:
+  # --- INFRASTRUCTURE ---
+  # Database PostgreSQL (Sesuai konfigurasi kamu)
+  db:
+    image: postgres:17-alpine
+    container_name: parking_db
+    restart: always
+    environment:
+      POSTGRES_DB: parking_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  # Redis (Sesuai konfigurasi kamu)
+  redis:
+    image: redis:alpine
+    container_name: parking_redis
+    ports:
+      - "6379:6379"
+
+  # --- APPLICATION SERVICES ---
+  
+  # Frontend Dashboard (Terminal 1: npm run dev)
+  # frontend:
+  #   build: ./frontend-dashboard
+  #   container_name: parking_frontend
+  #   ports:
+  #     - "5173:5173"
+  #   volumes:
+  #     - ./frontend-dashboard:/app
+  #     - /app/node_modules
+  #   depends_on:
+  #     - backend
+  #   command: npm run dev -- --host
+
+    # Frontend Dashboard (Satu container, diakses dari 3 port berbeda)
+  frontend:
+    build: ./frontend-dashboard
+    container_name: parking_frontend
+    ports:
+      # Port 5173 diarahkan ke 5173 (Untuk Admin)
+      - "5173:5173"
+      # Port 5174 diarahkan ke 5173 (Untuk Staff)
+      - "5174:5173"
+      # Port 5175 diarahkan ke 5173 (Untuk Customer)
+      - "5175:5173"
+    volumes:
+      - ./frontend-dashboard:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    command: npm run dev -- --host
+
+  # AI Vision Service (Terminal 2: uvicorn main:app)
+  ai_service:
+    build: ./ai-vision-service
+    container_name: parking_ai
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./ai-vision-service:/app
+    # Tetap bisa akses network backend jika diperlukan
+    depends_on:
+      - redis
+
+  # Backend API (Terminal 4: php artisan serve)
+  backend:
+    build: ./backend-api
+    container_name: parking_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend-api:/var/www
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_DATABASE=parking_db
+      - DB_USERNAME=admin
+      - DB_PASSWORD=password
+      - REDIS_HOST=redis
+    depends_on:
+      - db
+      - redis
+    command: php artisan serve --host=0.0.0.0 --port=8000
+
+  # Laravel Reverb (Terminal 3: php artisan reverb:start)
+  reverb:
+    build: ./backend-api
+    container_name: parking_reverb
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend-api:/var/www
+    depends_on:
+      - backend
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+
+volumes:
+  db_data:

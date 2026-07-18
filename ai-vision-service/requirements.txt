@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+ultralytics
+opencv-python-headless
+paddleocr
+easyocr
+python-multipart
+# Kita akan instal paddlepaddle secara manual di bawah

@@ -1,0 +1,34 @@
+# Laravel & Composer
+/vendor
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+
+# Logs & Cache
+*.log
+.phpunit.result.cache
+/.phpunit.cache
+.phpactor.json
+
+# Editor & OS Files
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+.DS_Store
+Thumbs.db
+
+# Misc
+/auth.json
+Homestead.json
+Homestead.yaml
+
+# Rahasia
+.env
+.env.*
+.env.backup
+.env.production

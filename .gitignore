@@ -1,0 +1,9 @@
+# Mengabaikan folder Python (Nama folder disesuaikan!)
+ai-vision-service/venv/
+ai-vision-service/env/
+ai-vision-service/__pycache__/
+*.pyc
+
+# Mac/OS
+.DS_Store
+Thumbs.db
