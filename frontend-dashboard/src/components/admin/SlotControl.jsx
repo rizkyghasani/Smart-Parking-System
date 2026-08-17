@@ -10,12 +10,16 @@ const SlotControl = () => {
         text: ''
     });
 
+    const [inputType, setInputType] = useState('slot'); // 'slot' atau 'exit'
     const [saving, setSaving] = useState(false);
     const [updatingId, setUpdatingId] = useState(null);
 
+    // 🛠️ UPDATE: Mengganti priority_weight dengan x_coord dan y_coord
     const [formData, setFormData] = useState({
-        slot_code: '',
-        priority_weight: ''
+        slot_code: '', // Untuk slot
+        gate_name: '', // Untuk pintu exit
+        x_coord: '',
+        y_coord: ''
     });
 
     const [editMode, setEditMode] = useState(false);
@@ -68,7 +72,8 @@ const SlotControl = () => {
     const resetForm = () => {
         setFormData({
             slot_code: '',
-            priority_weight: ''
+            x_coord: '',
+            y_coord: ''
         });
 
         setEditMode(false);
@@ -77,36 +82,32 @@ const SlotControl = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
         try {
             setSaving(true);
 
-            if (editMode) {
-                await api.put(`/slots/${selectedSlotId}`, formData);
-
-                showMessage(
-                    'success',
-                    '✅ Slot berhasil diperbarui.'
-                );
+            if (inputType === 'exit') {
+                // Tembak ke endpoint Exit
+                await api.post('/exits', {
+                    name: formData.gate_name,
+                    x_coord: formData.x_coord,
+                    y_coord: formData.y_coord
+                });
+                showMessage('success', '✅ Pintu Exit berhasil ditambahkan & terhubung ke sistem graf!');
             } else {
-                await api.post('/slots', formData);
-
-                showMessage(
-                    'success',
-                    '✅ Slot baru berhasil ditambahkan.'
-                );
+                // Logika lama untuk simpan/edit Slot Parkir
+                if (editMode) {
+                    await api.put(`/slots/${selectedSlotId}`, formData);
+                    showMessage('success', '✅ Slot berhasil diperbarui.');
+                } else {
+                    await api.post('/slots', formData);
+                    showMessage('success', '✅ Slot baru berhasil ditambahkan.');
+                }
             }
 
             resetForm();
             loadSlots();
         } catch (error) {
-            console.error(error);
-
-            const msg =
-                error.response?.data?.message ||
-                '❌ Terjadi kesalahan saat menyimpan data.';
-
-            showMessage('error', msg);
+            showMessage('error', error.response?.data?.message || '❌ Gagal menyimpan data.');
         } finally {
             setSaving(false);
         }
@@ -119,7 +120,8 @@ const SlotControl = () => {
 
         setFormData({
             slot_code: slot.slot_code,
-            priority_weight: slot.priority_weight
+            x_coord: slot.x_coord ?? '',
+            y_coord: slot.y_coord ?? ''
         });
 
         window.scrollTo({
@@ -130,7 +132,7 @@ const SlotControl = () => {
 
     const handleDelete = async (slot) => {
         const confirmDelete = window.confirm(
-            `Hapus slot ${slot.slot_code}?`
+            `Hapus slot ${slot.slot_code}? (Titik graf & jalur terkait akan ikut terhapus otomatis)`
         );
 
         if (!confirmDelete) return;
@@ -140,7 +142,7 @@ const SlotControl = () => {
 
             showMessage(
                 'success',
-                '🗑️ Slot berhasil dihapus.'
+                '🗑️ Slot beserta graf jalurnya berhasil dihapus.'
             );
 
             loadSlots();
@@ -231,7 +233,7 @@ const SlotControl = () => {
     if (loading) {
         return (
             <div className="p-8 text-center text-gray-500 font-medium">
-                ⏳ Memuat data slot parkir...
+                ⏳ Memuat data slot parkir & topologi graf...
             </div>
         );
     }
@@ -242,12 +244,11 @@ const SlotControl = () => {
             {/* HEADER */}
             <div>
                 <h3 className="text-xl font-black text-slate-800">
-                    Slot Management
+                    Slot Management & Spatial Graph
                 </h3>
 
                 <p className="text-sm text-gray-500 mt-1">
-                    Kelola master slot parkir, prioritas,
-                    dan status operasional sistem.
+                    Kelola master slot parkir beserta koordinat fisik X & Y untuk komputasi algoritma Dijkstra.
                 </p>
             </div>
 
@@ -317,8 +318,8 @@ const SlotControl = () => {
                 <div className="flex justify-between items-center mb-5">
                     <h4 className="text-xs uppercase font-bold tracking-wider">
                         {editMode
-                            ? '✏️ Edit Slot'
-                            : '➕ Tambah Slot Baru'}
+                            ? '✏️ Edit Koordinat Slot'
+                            : '➕ Tambah Slot Baru & Auto-Graph'}
                     </h4>
 
                     {editMode && (
@@ -332,48 +333,80 @@ const SlotControl = () => {
                     )}
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-
-                    <div>
-                        <label className="block text-xs font-bold mb-2">
-                            Slot Code
+                {/* Pemilih Tipe Input (Hanya tampil jika bukan mode edit) */}
+                {!editMode && (
+                    <div className="flex gap-4 mb-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="type" checked={inputType === 'slot'} onChange={() => setInputType('slot')} />
+                            <span className="text-sm font-bold">Slot Parkir</span>
                         </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="type" checked={inputType === 'exit'} onChange={() => setInputType('exit')} />
+                            <span className="text-sm font-bold">Gerbang Exit</span>
+                        </label>
+                    </div>
+                )}
 
+                <div className="grid md:grid-cols-3 gap-4">
+
+                   <div>
+                        <label className="block text-xs font-bold mb-2">
+                            {inputType === 'slot' ? 'Kode Slot' : 'Nama Gerbang Exit'}
+                        </label>
                         <input
                             type="text"
                             required
-                            value={formData.slot_code}
-                            onChange={(e) =>
-                                setFormData({
-                                    ...formData,
-                                    slot_code:
-                                        e.target.value.toUpperCase()
-                                })
-                            }
-                            className="w-full border border-gray-200 rounded-xl px-4 py-3"
-                            placeholder="Contoh: A1"
+                            value={inputType === 'slot' ? formData.slot_code : formData.gate_name}
+                            onChange={(e) => setFormData({
+                                ...formData,
+                                [inputType === 'slot' ? 'slot_code' : 'gate_name']: e.target.value.toUpperCase()
+                            })}
+                            className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white"
+                            placeholder={inputType === 'slot' ? 'Contoh: S36' : 'Contoh: EXIT_UTAMA'}
                         />
                     </div>
 
                     <div>
                         <label className="block text-xs font-bold mb-2">
-                            Priority Weight
+                            Koordinat X (Meter)
                         </label>
 
                         <input
                             type="number"
+                            step="any"
                             required
-                            min="1"
-                            value={formData.priority_weight}
+                            value={formData.x_coord}
                             onChange={(e) =>
                                 setFormData({
                                     ...formData,
-                                    priority_weight:
+                                    x_coord:
                                         e.target.value
                                 })
                             }
-                            className="w-full border border-gray-200 rounded-xl px-4 py-3"
-                            placeholder="1"
+                            className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white"
+                            placeholder="Contoh: 38.75"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold mb-2">
+                            Koordinat Y (Meter)
+                        </label>
+
+                        <input
+                            type="number"
+                            step="any"
+                            required
+                            value={formData.y_coord}
+                            onChange={(e) =>
+                                setFormData({
+                                    ...formData,
+                                    y_coord:
+                                        e.target.value
+                                })
+                            }
+                            className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-white"
+                            placeholder="Contoh: 6.00"
                         />
                     </div>
 
@@ -383,13 +416,13 @@ const SlotControl = () => {
                     <button
                         type="submit"
                         disabled={saving}
-                        className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl text-sm font-bold"
+                        className="bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md transition-all"
                     >
                         {saving
                             ? 'Menyimpan...'
                             : editMode
-                            ? 'Update Slot'
-                            : 'Tambah Slot'}
+                            ? 'Update Slot & Posisi'
+                            : 'Tambah Slot & Generate Graf'}
                     </button>
                 </div>
 
@@ -399,8 +432,8 @@ const SlotControl = () => {
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
 
                 <div className="p-5 border-b bg-slate-50">
-                    <h4 className="text-xs font-bold uppercase tracking-wider">
-                        Daftar Master Slot
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+                        Daftar Master Slot & Posisi Spasial
                     </h4>
                 </div>
 
@@ -411,7 +444,8 @@ const SlotControl = () => {
                         <thead>
                             <tr className="bg-slate-100 text-[11px] uppercase tracking-wider text-gray-600">
                                 <th className="px-6 py-3 text-left">Slot</th>
-                                <th className="px-6 py-3 text-left">Prioritas</th>
+                                <th className="px-6 py-3 text-left">Koordinat X</th>
+                                <th className="px-6 py-3 text-left">Koordinat Y</th>
                                 <th className="px-6 py-3 text-left">Status</th>
                                 <th className="px-6 py-3 text-left">Ubah Status</th>
                                 <th className="px-6 py-3 text-left">Aksi</th>
@@ -420,76 +454,88 @@ const SlotControl = () => {
 
                         <tbody className="divide-y divide-gray-100">
 
-                            {slots.map((slot) => (
-                                <tr
-                                    key={slot.id}
-                                    className="hover:bg-slate-50"
-                                >
-                                    <td className="px-6 py-4 font-bold">
-                                        {slot.slot_code}
-                                    </td>
-
-                                    <td className="px-6 py-4">
-                                        {slot.priority_weight}
-                                    </td>
-
-                                    <td className="px-6 py-4">
-                                        {getStatusBadge(slot.status)}
-                                    </td>
-
-                                    <td className="px-6 py-4">
-
-                                        <select
-                                            value={slot.status}
-                                            disabled={
-                                                updatingId === slot.id
-                                            }
-                                            onChange={(e) =>
-                                                updateStatus(
-                                                    slot.id,
-                                                    e.target.value
-                                                )
-                                            }
-                                            className="border border-gray-200 rounded-lg px-3 py-2 text-xs"
-                                        >
-                                            <option value="available">
-                                                Available
-                                            </option>
-
-                                            <option value="occupied">
-                                                Occupied
-                                            </option>
-
-                                            <option value="maintenance">
-                                                Maintenance
-                                            </option>
-                                        </select>
-
-                                    </td>
-
-                                    <td className="px-6 py-4 space-x-2">
-
-                                        <button
-                                            onClick={() =>
-                                                handleEdit(slot)
-                                            }
-                                            className="px-3 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-bold"
-                                        >
-                                            Edit
-                                        </button>
-
-                                        <button
-                                            onClick={() =>
-                                                handleDelete(slot)
-                                            }
-                                            className="px-3 py-2 rounded-lg bg-red-100 text-red-700 text-xs font-bold"
-                                        >
-                                            Hapus
-                                        </button>
-
+                            {slots.length === 0 ? (
+                                <tr>
+                                    <td colSpan="6" className="px-6 py-8 text-center text-gray-400 text-sm">
+                                        Belum ada slot parkir yang terdaftar. Silakan tambahkan melalui form di atas.
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                slots.map((slot) => (
+                                    <tr
+                                        key={slot.id}
+                                        className="hover:bg-slate-50 transition-colors"
+                                    >
+                                        <td className="px-6 py-4 font-bold text-slate-800">
+                                            {slot.slot_code}
+                                        </td>
+
+                                        <td className="px-6 py-4 text-gray-600">
+                                            {slot.x_coord ?? '-'} m
+                                        </td>
+
+                                        <td className="px-6 py-4 text-gray-600">
+                                            {slot.y_coord ?? '-'} m
+                                        </td>
+
+                                        <td className="px-6 py-4">
+                                            {getStatusBadge(slot.status)}
+                                        </td>
+
+                                        <td className="px-6 py-4">
+
+                                            <select
+                                                value={slot.status}
+                                                disabled={
+                                                    updatingId === slot.id
+                                                }
+                                                onChange={(e) =>
+                                                    updateStatus(
+                                                        slot.id,
+                                                        e.target.value
+                                                    )
+                                                }
+                                                className="border border-gray-200 rounded-lg px-3 py-2 text-xs bg-white shadow-sm"
+                                            >
+                                                <option value="available">
+                                                    Available
+                                                </option>
+
+                                                <option value="occupied">
+                                                    Occupied
+                                                </option>
+
+                                                <option value="maintenance">
+                                                    Maintenance
+                                                </option>
+                                            </select>
+
+                                        </td>
+
+                                        <td className="px-6 py-4 space-x-2">
+
+                                            <button
+                                                onClick={() =>
+                                                    handleEdit(slot)
+                                                }
+                                                className="px-3 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-bold hover:bg-blue-200 transition-colors"
+                                            >
+                                                Edit
+                                            </button>
+
+                                            <button
+                                                onClick={() =>
+                                                    handleDelete(slot)
+                                                }
+                                                className="px-3 py-2 rounded-lg bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 transition-colors"
+                                            >
+                                                Hapus
+                                            </button>
+
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
 
                         </tbody>
 

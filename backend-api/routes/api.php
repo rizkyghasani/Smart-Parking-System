@@ -65,6 +65,7 @@ Route::prefix('admin/auth')->group(function () {
 Route::prefix('admin')->middleware('auth:sanctum')->group(function () {
 
     Route::get('/dashboard-stats', [DashboardController::class, 'getStats']);   
+    Route::get('/transactions', [\App\Http\Controllers\Api\Admin\AdminTransactionController::class, 'index']);
 
     Route::get('/revenue-config', [RevenueConfigController::class, 'index']); // ← Tambahkan Baris Ini
     Route::get('/revenue-config/latest', [RevenueConfigController::class, 'getLatest']);
@@ -81,6 +82,7 @@ Route::prefix('admin')->middleware('auth:sanctum')->group(function () {
     Route::put('/slots/{id}', [AdminSlotManagementController::class, 'update']);
     Route::delete('/slots/{id}', [AdminSlotManagementController::class, 'destroy']);
     Route::patch('/slots/{id}/status', [AdminSlotManagementController::class, 'updateStatus']);
+    Route::post('/exits', [AdminSlotManagementController::class, 'storeExit']);
 
     Route::get('/members/customers', [MemberController::class, 'index']); // List & Search
     Route::get('/members/customers/{id}', [MemberController::class, 'show']); // Detail Profil
@@ -97,5 +99,7 @@ Route::prefix('customer')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthCustomerController::class, 'logout']);
         Route::get('/dashboard', [CustomerDashboardController::class, 'index']); // ← Rute dashboard yang kita bahas tadi
+        Route::post('/tap-in', [CustomerDashboardController::class, 'mobileTapIn']);
+        Route::post('/tap-out', [CustomerDashboardController::class, 'mobileTapOut']);
     });
 });

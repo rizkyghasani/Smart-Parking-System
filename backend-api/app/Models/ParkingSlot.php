@@ -9,12 +9,12 @@ class ParkingSlot extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'slot_code',
-        'status',
-        'priority_weight',
-        'roi_coordinates'
-    ];
+    protected $fillable = ['slot_code', 'status', 'x_coord', 'y_coord', 'roi_coordinates'];
+
+    public function node()
+    {
+        return $this->hasOne(Node::class);
+    }
 
     protected $casts = [
         'roi_coordinates' => 'array',

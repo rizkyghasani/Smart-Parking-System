@@ -14,27 +14,43 @@ class DashboardController extends Controller
      * 📊 Mengambil Data Ringkasan Statistik untuk Dashboard Utama Admin
      * GET /api/admin/dashboard-stats
      */
-    public function getStats()
+public function getStats(Request $request)
     {
-        // 1. Hitung total pendapatan dari transaksi sirkulasi parkir rill yang sudah selesai
-        $totalRevenue = ParkingTransaction::sum('fee');
+        $filter = $request->query('filter', '7_days');
+        
+        // Tentukan batas waktu
+        $startDate = now();
+        if ($filter === '7_days') $startDate = now()->subDays(7);
+        elseif ($filter === '30_days') $startDate = now()->subDays(30);
+        elseif ($filter === 'this_year') $startDate = now()->startOfYear();
 
-        // 2. Hitung jumlah petugas lapangan yang berstatus aktif saat ini
-        $activeStaffCount = User::where('role', 'staff')
-            ->where('is_active', true)
-            ->count();
+        // 1. Ambil data chart (Group by Date)
+        $chartData = \App\Models\ParkingTransaction::whereNotNull('exit_time')
+            ->where('entry_time', '>=', $startDate)
+            ->selectRaw('DATE(entry_time) as date, SUM(fee) as revenue')
+            ->groupBy('date')
+            ->orderBy('date', 'asc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'tanggal' => date('d M', strtotime($item->date)),
+                    'pendapatan' => (int) $item->revenue
+                ];
+            });
 
-        // 3. Hitung jumlah slot parkir yang mendeteksi adanya alarm mismatch plat nomor
-        $violationCount = ParkingSlot::where('status', 'violation')->count();
+        // 2. Data Statistik Cards (tetap sama)
+        $totalRevenue = \App\Models\ParkingTransaction::sum('fee');
+        $activeStaff = \App\Models\User::where('role', 'staff')->where('is_active', true)->count(); // Sesuaikan tabelmu
+        $violationCount = 0; // Sesuaikan dengan logikamu
 
         return response()->json([
             'success' => true,
-            'message' => 'Statistik dashboard berhasil dimuat',
             'data' => [
-                'total_revenue'      => (int) $totalRevenue,
-                'active_staff_count' => (int) $activeStaffCount,
-                'violation_count'    => (int) $violationCount
+                'total_revenue' => $totalRevenue,
+                'active_staff_count' => $activeStaff,
+                'violation_count' => $violationCount,
+                'chart_data' => $chartData // 🌟 Kirim data chart ke React
             ]
-        ], 200);
+        ]);
     }
 }

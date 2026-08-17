@@ -1,213 +1,172 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-//import { User, Car, ShieldCheck, History, LogOut } from 'lucide-react';
-import { User, Car, ShieldCheck, History, LogOut, RefreshCw } from 'lucide-react';
+import CustomerHistory from './CustomerHistory';
+import CustomerParking from './CustomerParking'; // 🌟 Import Komponen Baru
+import { User, Car, ShieldCheck, LogOut, RefreshCw, LayoutDashboard, History, Map as MapIcon } from 'lucide-react';
 
 const CustomerDashboard = ({ onLogoutSuccess }) => {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('parking'); // 🌟 Set default ke 'parking' (Self Service)
+    const [refreshing, setRefreshing] = useState(false);
+    const [historyPage, setHistoryPage] = useState(1);
+    const [historyLimit, setHistoryLimit] = useState(10);
 
-  // 🌟 1. Fungsi handleLogout untuk membersihkan token sebelum keluar
-  const handleLogout = () => {
-    localStorage.removeItem('customer_token');
-    // localStorage.removeItem('customer_user'); // (Opsional)
-    onLogoutSuccess();
-  };
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
-useEffect(() => {
-    let customerId = null;
+    const handleLogout = () => {
+        localStorage.removeItem('customer_token');
+        onLogoutSuccess();
+    };
 
-    const fetchData = async () => {
-      try {
-        const token = localStorage.getItem('customer_token');
-        
-        // 🌟 1. Cek dulu apakah token ada. Jika tidak, langsung tendang ke halaman login
-        if (!token) {
-          handleLogout();
-          return;
-        }
+    // 🌟 Pindahkan fungsi fetchDashboard ke luar agar bisa dipanggil ulang oleh child
+    const fetchDashboardData = async () => {
+        try {
+            const token = localStorage.getItem('customer_token');
+            if (!token) {
+                handleLogout();
+                return;
+            }
 
-        const response = await axios.get('http://localhost:8000/api/customer/dashboard', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        const dashboardData = response.data.data;
-        setData(dashboardData);
-        customerId = dashboardData.id || dashboardData.customer_id;
-
-        if (window.echo && customerId) {
-          window.echo.channel(`customer.${customerId}`)
-            .listen('.MemberStatusUpdated', (e) => {
-              setData(prevData => ({
-                ...prevData,
-                member: {
-                  ...prevData?.member,
-                  is_active: e.is_active,
-                  expired_at: e.expired_at
-                }
-              }));
+            const response = await axios.get(`${API_URL}/customer/dashboard?page=${historyPage}&limit=${historyLimit}`, {
+                headers: { Authorization: `Bearer ${token}` }
             });
+            setData(response.data.data);
+        } catch (err) {
+            console.error("Gagal memuat dashboard:", err);
+            if (err.response?.status === 401) {
+                alert("Sesi berakhir. Silakan login kembali.");
+                handleLogout();
+            }
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
         }
-
-      } catch (err) {
-        console.error("Gagal memuat dashboard:", err);
-        
-        // 🌟 2. TANGKAP ERROR 401: Jika token kedaluwarsa/ditolak server
-        if (err.response && err.response.status === 401) {
-          alert("Sesi Anda telah berakhir. Silakan login kembali.");
-          handleLogout(); // Panggil fungsi logout untuk membersihkan token mati
-        }
-      } finally {
-        setLoading(false);
-      }
     };
-    
-    fetchData();
 
-    return () => {
-      if (window.echo && customerId) {
-        window.echo.leaveChannel(`customer.${customerId}`);
-      }
+    useEffect(() => {
+        fetchDashboardData();
+
+        // Optional: Setup WebSocket listener for membership status updates here...
+    }, [historyPage, historyLimit]);
+
+    const handleManualRefresh = () => {
+        setRefreshing(true);
+        fetchDashboardData();
     };
-  }, []);
 
-  // Tambahkan state loading untuk tombol refresh
-const [refreshing, setRefreshing] = useState(false);
+    if (loading) return <div className="p-10 bg-slate-950 min-h-screen text-white text-center flex items-center justify-center">Memuat ruang kemudi Anda...</div>;
+    if (!data) return null;
 
-const refreshMemberStatus = async () => {
-      setRefreshing(true);
-      try {
-          const token = localStorage.getItem('customer_token');
-          const response = await axios.get('http://localhost:8000/api/customer/dashboard', {
-              headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          // Update hanya bagian member di dalam state data
-          setData(prev => ({
-              ...prev,
-              member: response.data.data.member
-          }));
-      } catch (err) {
-          alert("Gagal memperbarui status.");
-      } finally {
-          setRefreshing(false);
-      }
-  };
-
-  if (loading) return <div className="p-10 bg-slate-900 min-h-screen text-white text-center flex items-center justify-center">Memuat profil Anda...</div>;
-  if (!data) return (
-    <div className="p-10 bg-slate-900 min-h-screen text-white text-center flex flex-col items-center justify-center">
-        <p className="mb-4">Sesi tidak valid atau data gagal dimuat.</p>
-        <button onClick={handleLogout} className="px-4 py-2 bg-rose-500 rounded-lg hover:bg-rose-600">
-            Kembali ke Beranda
-        </button>
-    </div>
-  );
-
-  return (
-    <div className="p-6 bg-slate-900 min-h-screen text-slate-200">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold text-white">Dashboard Pelanggan</h1>
-        
-        {/* Tombol Logout */}
-        <button onClick={handleLogout} className="flex items-center gap-2 text-rose-400 hover:text-rose-300 transition-colors">
-          <LogOut size={18} /> Keluar
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Card Data Diri & Kendaraan */}
-        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><User size={20} className="text-indigo-400"/> Profil Anda</h2>
-          <div className="space-y-3">
-            <p>Nama: <span className="font-bold text-white">{data.name}</span></p>
-            <p>Kontak: <span className="text-slate-400">{data.phone}</span></p>
-            <div className="mt-4 p-3 bg-slate-900 rounded-lg flex items-center gap-3 border border-slate-700">
-              <Car className="text-indigo-400" />
-              <div>
-                <p className="text-xs text-slate-500">Plat Kendaraan</p>
-                <p className="font-mono font-bold tracking-widest text-white">{data.plate}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Card Membership */}
-        <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-          <h2 className="text-lg font-semibold mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-                <ShieldCheck size={20} className={data.member?.is_active ? "text-emerald-400" : "text-rose-400"}/> 
-                Status Membership
-            </div>
+    return (
+        <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col">
             
-            {/* 🌟 TOMBOL REFRESH KECIL */}
-            <button 
-                onClick={refreshMemberStatus} 
-                disabled={refreshing}
-                className={`p-1 rounded-full hover:bg-slate-700 transition-all ${refreshing ? 'animate-spin' : ''}`}
-            >
-                <RefreshCw size={16} className="text-slate-400" />
-            </button>
-        </h2>
-          <div className="text-center py-4">
-              {/* Logika Status Real-Time */}
-              <div className={`font-black text-3xl ${data.member?.is_active ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {data.member 
-                  ? (data.member.is_active ? 'Aktif' : 'Dinonaktifkan Admin') 
-                  : 'Non-Member'
-              }
-              </div>
-              
-              {/* Pesan bantuan jika dinonaktifkan */}
-              {!data.member?.is_active && data.member && (
-              <p className="text-xs text-rose-300 mt-2 italic">
-                  Mohon hubungi admin untuk aktivasi kembali.
-              </p>
-              )}
-              
-              <p className="text-sm text-slate-400 mt-2">
-              Berlaku hingga: <span className="text-white">
-                  {data.member?.expired_at 
-                  ? new Date(data.member.expired_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) 
-                  : '-'}
-              </span>
-              </p>
-          </div>
-        </div>
-      </div>
+            {/* ==========================================
+                1. NAVBAR INDUK (LAYOUT UTAMA)
+            ========================================== */}
+            <nav className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 shadow-lg">
+                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-500/20 rounded-lg">
+                            <Car className="text-blue-400" size={20} />
+                        </div>
+                        <span className="text-white font-black text-xl tracking-tight hidden sm:block">
+                            Smart<span className="text-blue-500">Park</span>
+                        </span>
+                    </div>
 
-      {/* Riwayat Transaksi */}
-      <div className="mt-6 bg-slate-800 p-6 rounded-xl border border-slate-700">
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><History size={20} className="text-indigo-400"/> Riwayat Parkir</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-slate-500 text-sm border-b border-slate-700">
-                <th className="pb-2">Waktu Masuk</th>
-                <th className="pb-2">Biaya</th>
-                <th className="pb-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data?.transactions?.length > 0 ? (
-                data.transactions.map((tx) => (
-                  <tr key={tx.id} className="border-b border-slate-700/50 hover:bg-slate-700/20">
-                    <td className="py-3 font-mono text-sm">{new Date(tx.entry_time).toLocaleString('id-ID')}</td>
-                    <td className="py-3">Rp {tx.fee?.toLocaleString('id-ID') || 0}</td>
-                    <td className="py-3 text-emerald-400 text-sm">{tx.status}</td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="3" className="py-4 text-center text-slate-500 italic">Belum ada riwayat transaksi</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        <button onClick={() => setActiveTab('parking')} className={`flex items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all ${activeTab === 'parking' ? 'bg-slate-800 text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
+                            <MapIcon size={16} /> <span className="hidden sm:inline">Area Parkir</span>
+                        </button>
+                        <button onClick={() => setActiveTab('profile')} className={`flex items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all ${activeTab === 'profile' ? 'bg-slate-800 text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
+                            <User size={16} /> <span className="hidden sm:inline">Profil</span>
+                        </button>
+                        <button onClick={() => setActiveTab('history')} className={`flex items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all ${activeTab === 'history' ? 'bg-slate-800 text-blue-400 shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
+                            <History size={16} /> <span className="hidden sm:inline">Riwayat</span>
+                        </button>
+                    </div>
+
+                    <button onClick={handleLogout} className="flex items-center gap-2 text-sm text-rose-400 hover:text-rose-300 font-bold transition-colors bg-rose-500/10 hover:bg-rose-500/20 px-3 sm:px-4 py-2 rounded-lg">
+                        <LogOut size={16} /> <span className="hidden sm:inline">Keluar</span>
+                    </button>
+                </div>
+            </nav>
+
+            {/* ==========================================
+                2. KONTEN DINAMIS BERDASARKAN TAB
+            ========================================== */}
+            <div className="flex-1 max-w-7xl mx-auto p-6 w-full space-y-6 mt-2">
+                
+                {/* 🌟 TAB 1: AREA PARKIR (TAP-IN / MAP) 🌟 */}
+                {activeTab === 'parking' && (
+                    <CustomerParking 
+                        activeTransaction={data.active_transaction} 
+                        member={data.member}    /* 👈 Tambahkan ini */
+                        plate={data.plate}
+                        onTransactionChange={fetchDashboardData} // Lempar fungsi ini agar Child bisa minta Parent refresh
+                    />
+                )}
+
+                {/* TAB 2: PROFIL & MEMBERSHIP */}
+                {activeTab === 'profile' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-md">
+                                <h2 className="text-lg font-semibold mb-4 flex items-center gap-2"><User size={20} className="text-blue-400"/> Identitas Kendaraan</h2>
+                                <div className="space-y-3">
+                                    <p className="text-sm text-slate-400">Nama Lengkap: <span className="font-bold text-white ml-1">{data.name}</span></p>
+                                    <p className="text-sm text-slate-400">No. Kontak: <span className="text-slate-300 ml-1">{data.phone}</span></p>
+                                    <div className="mt-4 p-4 bg-slate-950 rounded-xl flex items-center gap-4 border border-slate-700/50">
+                                        <div className="p-3 bg-blue-500/10 rounded-lg"><Car className="text-blue-400" size={24} /></div>
+                                        <div>
+                                            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Plat Nomor</p>
+                                            <p className="text-xl font-mono font-black tracking-widest text-white mt-1">{data.plate}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-md flex flex-col justify-between">
+                                <h2 className="text-lg font-semibold mb-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <ShieldCheck size={20} className={data.member?.is_active ? "text-emerald-400" : "text-rose-400"}/> Status Membership
+                                    </div>
+                                    <button onClick={handleManualRefresh} className={`p-2 rounded-lg bg-slate-800 border border-slate-700 hover:text-blue-400 transition-all ${refreshing ? 'animate-spin' : ''}`}>
+                                        <RefreshCw size={16} className={refreshing ? 'text-blue-400' : 'text-slate-400'} />
+                                    </button>
+                                </h2>
+                                
+                                <div className="text-center py-4 bg-slate-950 rounded-xl border border-slate-800">
+                                    <div className={`font-black text-4xl tracking-tight ${data.member?.is_active ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                        {data.member ? (data.member.is_active ? 'AKTIF' : 'NONAKTIF') : 'NON-MEMBER'}
+                                    </div>
+                                    <div className="mt-4 pt-4 border-t border-slate-800/50">
+                                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Berlaku Hingga</p>
+                                        <p className="text-lg font-bold text-white mt-1">
+                                            {data.member?.expired_at ? new Date(data.member.expired_at).toLocaleDateString('id-ID') : '-'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB 3: RIWAYAT */}
+                {activeTab === 'history' && (
+                        <CustomerHistory 
+                            transactions={data?.transactions} 
+                            limit={historyLimit}
+                            setLimit={setHistoryLimit}
+                            page={historyPage}
+                            setPage={setHistoryPage}
+                        />
+                    )}
+
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default CustomerDashboard;

@@ -8,6 +8,7 @@ import StaffDashboard from './components/staff/StaffDashboard';
 import CustomerDashboard from './components/customer/CustomerDashboard';
 import LoginCustomer from './components/customer/LoginCustomer';
 import RegisterCustomer from './components/customer/RegisterCustomer';
+import SpatialParkingLayout from './SpatialParkingLayout';
 import { echo } from './services/echo.js';
 import CameraStream from './components/CameraStream';
 import { Car, Monitor, Activity, LogOut, Scan, RefreshCcw, AlertCircle, X, CheckCircle, Receipt } from 'lucide-react';
@@ -15,22 +16,22 @@ import { Car, Monitor, Activity, LogOut, Scan, RefreshCcw, AlertCircle, X, Check
 const AI_URL   = 'http://localhost:8001';
 const API_URL  = 'http://localhost:8000/api';
 const INTERVAL = 3000;
-
+ 
 // =============================================================
 // KOMPONEN MODAL INTEGRASI — Mendukung Info Tap-In & Struk Kuitansi Tap-Out
 // =============================================================
 function ParkingModal({ modal, onClose }) {
   if (!modal) return null;
-
+ 
   const isTapIn = modal.type === 'tapin';
-
+ 
   const accentBg    = isTapIn ? 'bg-emerald-500/10' : 'bg-blue-500/10';
   const accentText  = isTapIn ? 'text-emerald-400'  : 'text-blue-400';
   const accentBtn   = isTapIn
     ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20'
     : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20';
   const Icon        = isTapIn ? CheckCircle : Receipt;
-
+ 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
@@ -46,7 +47,7 @@ function ParkingModal({ modal, onClose }) {
         >
           <X size={18} />
         </button>
-
+ 
         <div className="flex items-center gap-3 mb-5">
           <div className={`p-2.5 rounded-2xl ${accentBg}`}>
             <Icon size={22} className={accentText} />
@@ -60,14 +61,14 @@ function ParkingModal({ modal, onClose }) {
             </p>
           </div>
         </div>
-
+ 
         <div className="bg-slate-900 rounded-2xl px-5 py-4 mb-4 border border-slate-700">
           <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Nomor Plat</p>
           <p className="text-3xl font-mono font-black tracking-widest text-white text-center">
             {modal.plate}
           </p>
         </div>
-
+ 
         <div className="bg-slate-900 rounded-2xl p-4 mb-4 border border-slate-700 space-y-2 text-xs font-medium text-slate-300">
           <div className="flex justify-between">
             <span className="text-slate-500">{isTapIn ? 'Menuju Slot:' : 'Slot Dikosongkan:'}</span>
@@ -83,8 +84,7 @@ function ParkingModal({ modal, onClose }) {
                 <span className="text-slate-500">Waktu Keluar:</span>
                 <span className="text-white font-bold">{modal.time}</span>
               </div>
-              
-              {/* 🌟 BARIS BARU: Menampilkan Tipe Pelanggan */}
+ 
               <div className="flex justify-between items-center py-1">
                 <span className="text-slate-500">Tipe Pelanggan:</span>
                 {modal.isMember ? (
@@ -97,7 +97,7 @@ function ParkingModal({ modal, onClose }) {
                    </span>
                 )}
               </div>
-
+ 
               <div className="border-t border-slate-700 pt-2 flex justify-between items-center text-sm font-bold mt-1">
                 <span className="text-white">Total Biaya:</span>
                 <span className={`text-base font-black ${modal.isMember ? 'text-emerald-400' : 'text-blue-400'}`}>
@@ -107,7 +107,7 @@ function ParkingModal({ modal, onClose }) {
             </>
           )}
         </div>
-
+ 
         <button
           onClick={onClose}
           className={`w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest
@@ -119,89 +119,89 @@ function ParkingModal({ modal, onClose }) {
     </div>
   );
 }
-
+ 
 // =============================================================
 // KOMPONEN UTAMA
 // =============================================================
 function App() {
   const [currentPage, setCurrentPage] = useState('user');
   const [slots,          setSlots]          = useState([]);
+  const [candidates,     setCandidates]     = useState([]);
   const [loading,        setLoading]        = useState(false);
   const [selectedSlot,   setSelectedSlot]   = useState(null);
-  const [modal,          setModal]          = useState(null); 
+  const [modal,          setModal]          = useState(null);
   const [detectedPlate,  setDetectedPlate]  = useState('');
   const [plateScore,     setPlateScore]     = useState(null);
   const [vehicleType,    setVehicleType]    = useState('');
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [aiStatus,       setAiStatus]       = useState('idle');
   const [lastDebug,      setLastDebug]      = useState(null);
-  const [isCameraEnabled, setIsCameraEnabled] = useState(false); 
-
-  // 🌟 PERBAIKAN 1: Inisialisasi useRef yang tertinggal agar pelacakan hardware stream valid
+  const [isCameraEnabled, setIsCameraEnabled] = useState(false);
+ 
   const streamRef = React.useRef(null);
   const videoRef = React.useRef(null);
-
-  // 1. Tambahkan state baru untuk menahan render awal
-  const [isCheckingSession, setIsCheckingSession] = useState(true); 
-
+ 
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+ 
   useEffect(() => {
         const adminToken = localStorage.getItem('admin_token');
         const staffToken = localStorage.getItem('staff_token');
         const customerToken = localStorage.getItem('customer_token');
-
+ 
         if (adminToken) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${adminToken}`;
             setCurrentPage('admin_dashboard');
         } else if (staffToken) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${staffToken}`;
-            // 🌟 PERBAIKAN TYPO: Samakan dengan yang di bawah
-            setCurrentPage('StaffDashboard'); 
+            setCurrentPage('StaffDashboard');
         } else if (customerToken) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${customerToken}`;
-            // 🌟 PERBAIKAN TYPO: Samakan dengan yang di bawah
-            setCurrentPage('CustomerDashboard'); 
+            setCurrentPage('CustomerDashboard');
         } else {
             delete axios.defaults.headers.common['Authorization'];
         }
-        
+ 
         setIsCheckingSession(false);
     }, []);
 
   useEffect(() => {
-    fetchSlots();
-    const channel = echo.channel('parking-channel');
-    channel.listen('.SlotUpdated', (e) => {
-      setSlots(prev => prev.map(s => s.id === e.slot.id ? e.slot : s));
-    });
-    return () => echo.leaveChannel('parking-channel');
+      fetchSlots();
+      const channel = echo.channel('parking-channel');
+      channel.listen('.SlotUpdated', (e) => {
+        // Merge, bukan replace — supaya field seperti x_coord/y_coord
+        // yang mungkin tidak disertakan di payload broadcast tidak hilang
+        setSlots(prev => prev.map(s =>
+          s.id === e.slot.id ? { ...s, ...e.slot } : s
+        ));
+      });
+      return () => echo.leaveChannel('parking-channel');
   }, []);
-
+ 
   const fetchSlots = async () => {
     try {
       const res = await axios.get(`${API_URL}/parking/slots`);
       setSlots(res.data.data);
+      setCandidates(res.data.candidates || []);
     } catch {
       console.error('Gagal fetch slots');
     }
   };
-
+ 
   const stopCamera = () => {
       if (streamRef.current) {
           streamRef.current.getTracks().forEach(track => track.stop());
           streamRef.current = null;
       }
-      // ← ganti querySelector dengan videoRef
       if (videoRef.current) {
           videoRef.current.srcObject = null;
       }
   };
-
+ 
   const startCamera = async () => {
       if (!isCameraEnabled) return;
       try {
           const stream = await navigator.mediaDevices.getUserMedia({ video: true });
           streamRef.current = stream;
-          // ← ganti querySelector dengan videoRef
           if (videoRef.current) {
               videoRef.current.srcObject = stream;
           }
@@ -209,33 +209,21 @@ function App() {
           console.error('Gagal akses kamera:', err);
       }
   };
-
+ 
   useEffect(() => {
       if (isCameraEnabled) {
           startCamera();
       } else {
-          stopCamera(); // ← ini yang matikan lampu kamera fisik
+          stopCamera();
       }
-
-      return () => stopCamera(); // cleanup saat unmount
+ 
+      return () => stopCamera();
   }, [isCameraEnabled]);
-
-  // useEffect(() => {
-  //   if (isCameraEnabled) {
-  //       startCamera();
-  //   } else {
-  //       stopCamera();
-  //   }
-
-  //   return () => stopCamera(); 
-  // }, [isCameraEnabled]);
-
+ 
   const captureAndDetect = useCallback(async () => {
-    //const video = document.querySelector('video');
     const video = videoRef.current;
-    // Jika kamera dimatikan atau belum siap, langsung batalkan pemindaian frame
     if (!isCameraEnabled || !video || video.readyState < 4) return;
-    
+ 
     setIsAiProcessing(true);
     setAiStatus('scanning');
     const canvas = document.createElement('canvas');
@@ -270,17 +258,16 @@ function App() {
       }
     }, 'image/jpeg', 0.92);
   }, [isCameraEnabled]);
-
-  // 🌟 PERBAIKAN 3: Menyertakan isCameraEnabled sebagai parameter dependensi pemicu interval
+ 
   useEffect(() => {
     if (!isCameraEnabled) {
       setAiStatus('idle');
-      return; 
+      return;
     }
     const id = setInterval(captureAndDetect, INTERVAL);
     return () => clearInterval(id);
   }, [captureAndDetect, isCameraEnabled]);
-
+ 
   const handleTapIn = async () => {
     const plate = detectedPlate || `B ${Math.floor(Math.random() * 9000) + 1000}`;
     setLoading(true);
@@ -288,34 +275,40 @@ function App() {
       const res  = await axios.post(`${API_URL}/parking/tap-in`, { plate_number: plate });
       const data = res.data.data; 
 
-      const slot = slots.find(s => s.id === data.parking_slot_id);
+      const slot = slots.find(s => s.id === data.parking_slot_id) || slots.find(s => s.slot_code === data.allocated_slot);
+
+      // 🌟 TAMBAHKAN BARIS INI: 
+      // Memaksa UI untuk langsung menyorot slot yang di-alokasikan backend
+      setSelectedSlot(slot); 
 
       setModal({
         type:     'tapin',
         plate:    plate,
-        slotCode: slot?.slot_code ?? `#${data.parking_slot_id}`,
-        time:     new Date(data.entry_time).toLocaleTimeString('id-ID'),
+        slotCode: slot?.slot_code ?? data.allocated_slot ?? 'N/A',
+        time:     new Date(data.transaction.entry_time).toLocaleTimeString('id-ID'),
       });
 
       setDetectedPlate('');
       setPlateScore(null);
       setVehicleType('');
       setAiStatus('idle');
+
+      await fetchSlots();
     } catch {
-      alert('❌ Tap-In gagal. Pastikan backend aktif.');
+      alert('❌ Tap-In gagal. Pastikan backend aktif dan ada slot tersedia.');
     } finally {
       setLoading(false);
     }
   };
-
+ 
   const handleTapOut = async (slotId) => {
     setLoading(true);
     try {
       const response = await axios.post(`${API_URL}/parking/tap-out`, { slot_id: slotId });
-
+ 
       if (response.data.status === 'success') {
         const currentSlot = slots.find(s => s.id === slotId);
-
+ 
         setModal({
           type:      'tapout',
           plate:     response.data.plate_number,
@@ -325,21 +318,22 @@ function App() {
           totalFee:  response.data.total_fee,
           isMember:  response.data.is_member
         });
-
-        setSelectedSlot(null); 
-        setSlots(prevSlots => prevSlots.map(slot => 
+ 
+        setSelectedSlot(null);
+        setSlots(prevSlots => prevSlots.map(slot =>
           slot.id === slotId ? { ...slot, status: 'available' } : slot
         ));
       }
+      await fetchSlots();
     } catch (error) {
       alert(error.response?.data?.message || 'Gagal memproses kendaraan keluar.');
     } finally {
       setLoading(false);
     }
   };
-
+ 
   const closeModal = () => setModal(null);
-
+ 
   const StatusPill = () => {
     const map = {
       idle:     { label: 'IDLE',     cls: 'bg-slate-700 text-slate-400' },
@@ -354,7 +348,7 @@ function App() {
       </span>
     );
   };
-
+ 
   const ConfBar = ({ score }) => {
     if (score == null) return null;
     const pct = Math.round(score * 100);
@@ -370,7 +364,7 @@ function App() {
       </div>
     );
   };
-
+ 
   if (isCheckingSession) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-900">
@@ -380,74 +374,77 @@ function App() {
       </div>
     );
   }
-
+ 
   // ROUTING / PAGES RENDERING
   if (currentPage === 'login') {
     return (
-      <LoginAdmin 
-        onLoginSuccess={() => setCurrentPage('admin_dashboard')} 
+      <LoginAdmin
+        onLoginSuccess={() => setCurrentPage('admin_dashboard')}
         onNavigateToRegister={() => setCurrentPage('register')}
         onBackToUser={() => setCurrentPage('user')}
       />
     );
   }
-
+ 
   if (currentPage === 'register') {
     return (
-      <RegisterAdmin 
-        onRegisterSuccess={() => setCurrentPage('login')} 
+      <RegisterAdmin
+        onRegisterSuccess={() => setCurrentPage('login')}
         onNavigateToLogin={() => setCurrentPage('login')}
       />
     );
   }
-
+ 
   if (currentPage === 'admin_dashboard') {
     return (
       <AdminLayout onLogoutSuccess={() => setCurrentPage('user')} />
     );
   }
-
+ 
   if (currentPage === 'login_staff') {
     return (
-      <LoginStaff 
-        onLoginSuccess={() => setCurrentPage('StaffDashboard')} 
+      <LoginStaff
+        onLoginSuccess={() => setCurrentPage('StaffDashboard')}
         onBackToMain={() => setCurrentPage('user')}
       />
     );
   }
-
+ 
   if (currentPage === 'StaffDashboard') {
     return (
-      <StaffDashboard 
-        onLogoutSuccess={() => setCurrentPage('user')} 
+      <StaffDashboard
+        onLogoutSuccess={() => setCurrentPage('user')}
       />
     );
   }
-
+ 
   if (currentPage === 'customer_login') {
       return (
-          <LoginCustomer 
-              onLoginSuccess={() => setCurrentPage('CustomerDashboard')} 
+          <LoginCustomer
+              onLoginSuccess={() => setCurrentPage('CustomerDashboard')}
               onNavigateToRegister={() => setCurrentPage('customer_register')}
           />
       );
   }
-
+ 
   if (currentPage === 'customer_register') {
       return (
-          <RegisterCustomer 
-              onRegisterSuccess={() => setCurrentPage('customer_login')} 
+          <RegisterCustomer
+              onRegisterSuccess={() => setCurrentPage('customer_login')}
               onNavigateToLogin={() => setCurrentPage('customer_login')}
           />
       );
   }
-
+ 
   if (currentPage === 'CustomerDashboard') {
       return (
           <CustomerDashboard onLogoutSuccess={() => setCurrentPage('user')} />
       );
   }
-
+ 
+  // 🌟 PERBAIKAN LAYOUT: kamera & denah TIDAK LAGI disejajarkan dalam grid 3 kolom.
+  // Denah butuh lebar penuh (kanvas ~896px min) sehingga dipisah ke barisnya sendiri,
+  // full width, di bawah kamera — bukan dipaksa masuk kolom sempit lg:col-span-1.
   function renderMainParkingContent() {
     return (
       <div className="max-w-6xl mx-auto py-8 px-4">
@@ -460,8 +457,7 @@ function App() {
               <span className="text-blue-500">PARKING SYSTEM</span>
             </h1>
           </div>
-          
-          {/* 🌟 PERBAIKAN 4: Menata letak tombol kontrol kamera agar berdampingan rapi dengan tombol TAP MASUK */}
+ 
           <div className="flex items-center gap-3">
             <button
                 onClick={() => setIsCameraEnabled(prev => !prev)}
@@ -473,7 +469,7 @@ function App() {
             >
                 <span>{isCameraEnabled ? '📷 Matikan Kamera' : '📷 Nyalakan Kamera'}</span>
             </button>
-
+ 
             <button
               onClick={handleTapIn}
               disabled={loading}
@@ -485,169 +481,125 @@ function App() {
             </button>
           </div>
         </header>
-
-        <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-4">
-            <div className="bg-slate-800 p-4 rounded-[2rem] border border-slate-700 shadow-2xl">
-              <div className="flex items-center justify-between mb-4 px-2">
-                <h2 className="text-sm font-bold flex items-center gap-2 text-slate-400 uppercase tracking-widest">
-                  <Monitor size={16} /> Live Entrance Camera
-                </h2>
-                {isAiProcessing && (
-                  <div className="flex items-center gap-2 text-blue-400 text-[10px] font-bold">
-                    <RefreshCcw size={12} className="animate-spin" /> SCANNING…
-                  </div>
+ 
+        {/* BARIS 1: Kamera & panel deteksi plat — full width, sendiri */}
+        <div className="bg-slate-800 p-4 rounded-[2rem] border border-slate-700 shadow-2xl mb-8">
+          <div className="flex items-center justify-between mb-4 px-2">
+            <h2 className="text-sm font-bold flex items-center gap-2 text-slate-400 uppercase tracking-widest">
+              <Monitor size={16} /> Live Entrance Camera
+            </h2>
+            {isAiProcessing && (
+              <div className="flex items-center gap-2 text-blue-400 text-[10px] font-bold">
+                <RefreshCcw size={12} className="animate-spin" /> SCANNING…
+              </div>
+            )}
+          </div>
+ 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center">
+                {isCameraEnabled ? (
+                    <video
+                        ref={videoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <div className="text-center text-slate-500 p-6 flex flex-col items-center gap-2">
+                        <AlertCircle size={36} className="text-slate-600" />
+                        <p className="text-xs font-bold uppercase tracking-wider">Kamera Dinonaktifkan</p>
+                        <p className="text-[10px] text-slate-600 max-w-xs leading-normal">Mode dev aktif. Klik tombol "Nyalakan Kamera" di atas untuk memulai simulasi deteksi OCR plat nomor.</p>
+                    </div>
                 )}
+            </div>
+ 
+            <div className="p-5 bg-slate-900 rounded-2xl border border-slate-700 flex flex-col">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  Detected Plate
+                </p>
+                <StatusPill />
               </div>
-              
-              {/* Render area tampilan stream hanya jika status aktif */}
-              <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-900 border border-slate-700 flex items-center justify-center">
-                  {isCameraEnabled ? (
-                      <video
-                          ref={videoRef}
-                          autoPlay
-                          muted
-                          playsInline
-                          className="w-full h-full object-cover"
-                      />
-                  ) : (
-                      <div className="text-center text-slate-500 p-6 flex flex-col items-center gap-2">
-                          <AlertCircle size={36} className="text-slate-600" />
-                          <p className="text-xs font-bold uppercase tracking-wider">Kamera Dinonaktifkan</p>
-                          <p className="text-[10px] text-slate-600 max-w-xs leading-normal">Mode dev aktif. Klik tombol "Nyalakan Kamera" di atas untuk memulai simulasi deteksi OCR plat nomor.</p>
-                      </div>
-                  )}
+              <div className="flex items-center gap-3">
+                <Scan className={detectedPlate ? 'text-blue-500' : 'text-slate-600'} size={28} />
+                <span className="text-3xl font-mono font-black tracking-widest text-white">
+                  {detectedPlate
+                    ? detectedPlate.replace(/(.{1,2})(\d{1,4})(.{0,3})/, '$1 $2 $3').trim()
+                    : '--- WAITING ---'}
+                </span>
               </div>
-
-              <div className="mt-4 p-5 bg-slate-900 rounded-2xl border border-slate-700">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                    Detected Plate
-                  </p>
-                  <StatusPill />
-                </div>
-                <div className="flex items-center gap-3">
-                  <Scan className={detectedPlate ? 'text-blue-500' : 'text-slate-600'} size={28} />
-                  <span className="text-3xl font-mono font-black tracking-widest text-white">
-                    {detectedPlate
-                      ? detectedPlate.replace(/(.{1,2})(\d{1,4})(.{0,3})/, '$1 $2 $3').trim()
-                      : '--- WAITING ---'}
-                  </span>
-                </div>
-                {vehicleType && (
-                  <p className="text-[10px] text-slate-500 mt-1 ml-10 uppercase">{vehicleType}</p>
-                )}
-                <ConfBar score={plateScore} />
-              </div>
+              {vehicleType && (
+                <p className="text-[10px] text-slate-500 mt-1 ml-10 uppercase">{vehicleType}</p>
+              )}
+              <ConfBar score={plateScore} />
+ 
               {lastDebug && (
-                <details className="mt-3 text-[10px] text-slate-500">
+                <details className="mt-auto pt-3 text-[10px] text-slate-500">
                   <summary className="cursor-pointer flex items-center gap-1 select-none px-1">
                     <AlertCircle size={11} /> Debug — last API response
                   </summary>
-                  <pre className="mt-2 p-3 bg-slate-950 rounded-xl overflow-x-auto text-[10px] leading-relaxed">
+                  <pre className="mt-2 p-3 bg-slate-950 rounded-xl overflow-x-auto text-[10px] leading-relaxed max-h-40 overflow-y-auto">
                     {JSON.stringify(lastDebug, null, 2)}
                   </pre>
                 </details>
               )}
             </div>
           </div>
-
-          <aside className="bg-slate-800 p-8 rounded-[2rem] border border-slate-700 shadow-2xl">
-            <h2 className="text-xl font-bold mb-8 flex items-center gap-3 tracking-tight text-white">
-              <Activity className="text-blue-500" /> Parking Layout
-            </h2>
-            <div className="grid grid-cols-2 gap-4">
-              {slots.map((slot) => (
-                <div
-                  key={slot.id}
-                  onClick={() => setSelectedSlot(slot)}
-                  className={`cursor-pointer p-6 rounded-2xl border-2 transition-all flex flex-col
-                              items-center ${
-                    slot.status === 'available'
-                      ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500/10'
-                      : slot.status === 'occupied'
-                      ? 'border-rose-500/20 bg-rose-500/5 text-rose-500'
-                      : 'border-yellow-500/20 bg-yellow-500/5 text-yellow-500'
-                  } ${selectedSlot?.id === slot.id ? 'ring-4 ring-blue-500/50 border-blue-500' : ''}`}
-                >
-                  <span className="text-3xl font-black mb-1">{slot.slot_code}</span>
-                  <span className="text-[9px] font-black uppercase tracking-tighter opacity-60">
-                    {slot.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-8 border-t border-slate-700 pt-8">
-              {selectedSlot && (selectedSlot.status === 'occupied' || selectedSlot.status === 'violation') ? (
-                <div>
-                  <p className="text-xs text-slate-400 mb-4 text-center font-medium">
-                    Action for slot <strong>{selectedSlot.slot_code}</strong>
-                  </p>
-                  <button
-                    onClick={() => handleTapOut(selectedSlot.id)}
-                    className="w-full bg-rose-600 hover:bg-rose-500 py-4 rounded-2xl font-black
-                               text-sm uppercase tracking-widest flex items-center justify-center
-                               gap-3 transition-all shadow-lg shadow-rose-600/20"
-                  >
-                    <LogOut size={18} /> TAP OUT
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center p-6 border-2 border-dashed border-slate-700 rounded-2xl">
-                  <p className="text-xs text-slate-500 font-medium">
-                    Select an occupied slot to perform action
-                  </p>
-                </div>
-              )}
-            </div>
-          </aside>
-        </main>
+        </div>
+ 
+        {/* BARIS 2: Denah parkir — full width, tidak lagi dipaksa masuk kolom sempit */}
+        <SpatialParkingLayout
+            slots={slots}
+            candidates={candidates}
+            selectedSlot={selectedSlot}
+            setSelectedSlot={setSelectedSlot}
+            handleTapOut={handleTapOut}
+            onRefreshCandidates={fetchSlots}
+        />
       </div>
     );
   }
-
+ 
 return (
     <div className="relative min-h-screen bg-slate-900">
-      {/* Tombol Portal Petugas (Kiri) */}
       <div className="absolute bottom-6 left-6 z-40">
-        <button 
+        <button
           onClick={() => setCurrentPage('login_staff')}
-          className="bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-white px-4 py-2.5 
-                    rounded-2xl text-xs font-bold tracking-wide shadow-lg border border-slate-700/60 
+          className="bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-white px-4 py-2.5
+                    rounded-2xl text-xs font-bold tracking-wide shadow-lg border border-slate-700/60
                     flex items-center space-x-2 backdrop-blur-sm transition-all"
         >
           <span>👷</span> <span>Portal Petugas</span>
         </button>
       </div>
-
-      {/* 🌟 Tombol Portal Pelanggan (Tengah Bawah) */}
+ 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40">
         <button
           onClick={() => setCurrentPage('customer_login')}
-          className="bg-indigo-600/90 hover:bg-indigo-500 text-white px-4 py-2.5 
-                     rounded-2xl text-xs font-bold tracking-wide shadow-lg border border-indigo-400/30 
+          className="bg-indigo-600/90 hover:bg-indigo-500 text-white px-4 py-2.5
+                     rounded-2xl text-xs font-bold tracking-wide shadow-lg border border-indigo-400/30
                      flex items-center space-x-2 backdrop-blur-sm transition-all"
         >
           <span>🚗</span> <span>Portal Pelanggan</span>
         </button>
       </div>
-
-      {/* Tombol Panel Admin (Kanan) */}
+ 
       <div className="absolute bottom-6 right-6 z-40">
         <button
           onClick={() => setCurrentPage('login')}
-          className="bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-white px-4 py-2.5 
-                     rounded-2xl text-xs font-bold tracking-wide shadow-lg border border-slate-700/60 
+          className="bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-white px-4 py-2.5
+                     rounded-2xl text-xs font-bold tracking-wide shadow-lg border border-slate-700/60
                      flex items-center space-x-2 backdrop-blur-sm transition-all"
         >
           <span>🔐</span> <span>Panel Admin</span>
         </button>
       </div>
-
+ 
       <ParkingModal modal={modal} onClose={closeModal} />
       {renderMainParkingContent()}
     </div>
   );
 }
-
+ 
 export default App;
