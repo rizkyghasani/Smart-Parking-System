@@ -3,11 +3,25 @@ import axios from 'axios';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
+import { LayoutDashboard, List, Bell, Car, X, LogOut, FileText, ClipboardList } from 'lucide-react';
 import RevenueConfig from './RevenueConfig';
 import StaffManagement from './StaffManagement';
 import MemberManagement from './MemberManagement';
 import SlotControl from './SlotControl';
 import AdminParkingHistory from './AdminParkingHistory';
+import AdminManualTapOutHistory from './AdminManualTapOutHistory';
+import AdminNotificationPage from './AdminNotificationPage';
+import AdminParkingOverview from './AdminParkingOverview';
+import {
+    Wallet,
+    UserCog,
+    ParkingSquare,
+    IdCard,
+    History,
+    FileCheck2,
+    Map,
+    RefreshCcw,
+} from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────
 // HELPERS
@@ -52,15 +66,19 @@ const ChartSkeleton = () => (
 );
 
 const NAV_ITEMS = [
-    { key: 'dashboard', label: 'Dashboard Utama',       icon: '📊' },
-    { key: 'revenue',   label: 'Kelola Tarif Parkir',   icon: '💰' },
-    { key: 'staff',     label: 'Manajemen Petugas',     icon: '👥' },
-    { key: 'slots',     label: 'Manajemen Status Slot', icon: '🅿️' },
-    { key: 'members',   label: 'Manajemen Member',      icon: '⭐' },
-    { key: 'history',   label: 'Riwayat Transaksi',     icon: '📜' },
+    { key: 'dashboard',      label: 'Dashboard Utama',            icon: LayoutDashboard },
+    { key: 'revenue',        label: 'Kelola Tarif Parkir',        icon: Wallet },
+    { key: 'layout_overview',label: 'Pemantauan Denah',           icon: Map },
+    { key: 'supervision',    label: 'Pusat Notifikasi',           icon: Bell },
+    { key: 'history',        label: 'Riwayat Transaksi',          icon: History },
+    { key: 'staff',          label: 'Manajemen Petugas',          icon: UserCog },
+    { key: 'slots',          label: 'Manajemen Status Slot',      icon: ParkingSquare },
+    { key: 'members',        label: 'Manajemen Member',           icon: IdCard },
+    { key: 'manual_history', label: 'Riwayat Verifikasi Manual',  icon: FileCheck2 },
 ];
 
 const TIME_FILTER_OPTIONS = [
+    { value: 'today',     label: 'Hari Ini'},
     { value: '7_days',    label: '7 Hari Terakhir' },
     { value: '30_days',   label: '30 Hari Terakhir' },
     { value: 'this_year', label: 'Tahun Ini' },
@@ -144,7 +162,7 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                     disabled={loadingStats}
                     className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-60"
                 >
-                    <span className={loadingStats ? 'animate-spin' : ''}>🔄</span>
+                    <RefreshCcw size={16} className={loadingStats ? 'animate-spin' : ''} />
                     {loadingStats ? 'Memuat...' : 'Refresh Data'}
                 </button>
             </div>
@@ -216,6 +234,7 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                                     tickLine={false}
                                     tick={{ fill: '#9CA3AF', fontSize: 12 }}
                                     dy={10}
+                                    interval={timeFilter === 'today' ? 2 : 'preserveStartEnd'}
                                 />
                                 <YAxis
                                     axisLine={false}
@@ -258,6 +277,9 @@ const AdminLayout = ({ onLogoutSuccess }) => {
             case 'slots':   return <SlotControl />;
             case 'members': return <MemberManagement />;
             case 'history': return <AdminParkingHistory />;
+            case 'manual_history': return <AdminManualTapOutHistory />;
+            case 'supervision': return <AdminNotificationPage />;
+            case 'layout_overview':return <AdminParkingOverview />;
             case 'dashboard':
             default:        return renderDashboard();
         }
@@ -273,13 +295,13 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                         <span className="font-bold text-lg tracking-wider text-white">PARKING ADMIN</span>
                     </div>
                     <nav className="p-4 space-y-2">
-                        {NAV_ITEMS.map(({ key, label, icon }) => (
+                        {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
                             <button
                                 key={key}
                                 onClick={() => setActiveTab(key)}
                                 className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-3 ${activeTab === key ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-slate-800 text-slate-400 hover:text-slate-200'}`}
                             >
-                                <span className="text-lg opacity-80">{icon}</span>
+                                <Icon size={18} className="shrink-0 opacity-80" />
                                 <span>{label}</span>
                             </button>
                         ))}
@@ -291,8 +313,8 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                         disabled={isLoggingOut}
                         className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-rose-400 hover:bg-slate-800 hover:text-rose-300 disabled:text-slate-600 transition-all flex items-center gap-3 whitespace-nowrap"
                     >
-                        <span className="text-lg opacity-80">❌</span>
-                        <span>{isLoggingOut ? 'Mencabut Sesi...' : 'Keluar Sistem'}</span>
+                        <span className="text-lg opacity-80"></span>
+                        <span>{isLoggingOut ? 'Mencabut Sesi...' : 'Keluar'}</span>
                     </button>
                 </div>
             </aside>

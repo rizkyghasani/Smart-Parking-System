@@ -169,30 +169,39 @@ class AdminSlotManagementController extends Controller
      */
     public function destroy($id)
     {
-        $slot = ParkingSlot::find($id);
+        try {
+            // 🌟 Pastikan meload relasi node/graf (Sesuaikan kata 'node' dengan nama fungsi relasi di model ParkingSlot-mu)
+            $slot = \App\Models\ParkingSlot::with('node')->findOrFail($id);
 
-        if (!$slot) {
+            // 🛡️ Keamanan: Cegah hapus jika slot sedang ada mobilnya
+            if ($slot->status === 'occupied') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Gagal: Slot ini sedang digunakan oleh kendaraan!'
+                ], 400);
+            }
+
+            // 🌟 1. HAPUS NODE TERLEBIH DAHULU
+            // Ini akan menghapus titik graf secara fisik agar tidak nyangkut di Algoritma Dijkstra
+            if ($slot->node) {
+                $slot->node->delete(); 
+            }
+
+            // 🌟 2. SOFT DELETE SLOT
+            // Menyembunyikan slot dari aplikasi tanpa merusak riwayat transaksi lama
+            $slot->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Slot beserta titik graf berhasil dihapus dari sistem.'
+            ]);
+            
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Slot tidak ditemukan'
-            ], 404);
+                'message' => 'Terjadi kesalahan sistem saat menghapus: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Safety Check: Jangan izinkan menghapus slot yang sedang terisi
-        if ($slot->status === 'occupied') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Slot sedang terisi kendaraan dan tidak dapat dihapus'
-            ], 400);
-        }
-
-        // Menghapus slot akan otomatis memicu cascade delete ke tabel nodes dan edges
-        $slot->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Slot beserta titik graf dan jalurnya berhasil dihapus'
-        ], 200);
     }
 
     /**
@@ -296,4 +305,6 @@ class AdminSlotManagementController extends Controller
             ], 201);
         });
     }
+
+    
 }

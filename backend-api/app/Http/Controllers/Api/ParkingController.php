@@ -8,10 +8,11 @@ use App\Models\ParkingTransaction;
 use App\Models\RevenueConfig;
 use App\Models\Customer;
 use App\Events\SlotUpdated;
+use App\Models\Notification;
+use Illuminate\Support\Facades\DB;
 use App\Services\DijkstraService; // ➕ 1. Import Service Dijkstra kita
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class ParkingController extends Controller
@@ -214,4 +215,112 @@ class ParkingController extends Controller
 
         return response()->json(['status' => 'valid']);
     }
+
+    /**
+     * Simulasi Deteksi Kamera IoT / Klik Manual User
+     */
+    public function simulateSensor(Request $request)
+    {
+        $request->validate([
+            'transaction_id' => 'required|exists:parking_transactions,id',
+            'detected_slot_id' => 'required|exists:parking_slots,id',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $transaction = ParkingTransaction::findOrFail($request->transaction_id);
+            $detectedSlot = ParkingSlot::lockForUpdate()->findOrFail($request->detected_slot_id);
+            $allocatedSlot = ParkingSlot::lockForUpdate()->findOrFail($transaction->parking_slot_id);
+
+            // 🚨 SKENARIO PELANGGARAN: User klik slot yang BEDA dengan alokasi sistem
+            if ($detectedSlot->id !== $allocatedSlot->id) {
+                
+                $detectedSlot->update(['status' => 'violation']);
+
+                // 🌟 BARU: catat link transaksi → slot fisik yang salah
+                $transaction->update([
+                    'detected_slot_id' => $detectedSlot->id,
+                    'is_violation'     => true,
+                ]);
+
+                Notification::create([
+                    'type' => 'violation',
+                    'title' => 'Pelanggaran Lokasi!',
+                    'body' => "Plat {$transaction->plate_number} parkir di {$detectedSlot->slot_code} (Seharusnya di {$allocatedSlot->slot_code}).",
+                    'to_user_id' => null,
+                    'transaction_id' => $transaction->id,
+                ]);
+
+                broadcast(new SlotUpdated($detectedSlot));
+                
+                DB::commit();
+                return response()->json([
+                    'success' => true, 
+                    'message' => 'PERINGATAN: Anda menempati slot yang salah! Petugas telah dinotifikasi.'
+                ]);
+            }
+
+            // ✅ SKENARIO NORMAL: User klik slot yang BENAR (Sesuai alokasi)
+            if ($detectedSlot->status !== 'occupied') {
+                $detectedSlot->update(['status' => 'occupied']);
+                broadcast(new SlotUpdated($detectedSlot));
+            }
+
+            // 🌟 BARU: reset link kalau sebelumnya sempat violation lalu klik ulang slot yang benar
+            $transaction->update([
+                'detected_slot_id' => $detectedSlot->id,
+                'is_violation'     => false,
+            ]);
+            
+            DB::commit();
+            return response()->json([
+                'success' => true, 
+                'message' => 'Terima kasih, posisi parkir Anda sesuai.'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Gagal sinkronisasi sensor: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Guest/Customer meminta bantuan petugas untuk tap-out manual
+     * (kasus plat tidak terbaca / masuk pakai e-money tanpa plat).
+     */
+    public function requestManualTapOut(Request $request)
+    {
+        $request->validate([
+            'slot_id' => 'required|exists:parking_slots,id',
+        ]);
+
+        $slot = ParkingSlot::findOrFail($request->slot_id);
+
+        $transaction = ParkingTransaction::where('parking_slot_id', $slot->id)
+            ->whereNull('exit_time')
+            ->latest()
+            ->first();
+
+        if (!$transaction) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Tidak ditemukan transaksi aktif di slot ini.'
+            ], 404);
+        }
+
+        Notification::create([
+            'type'           => 'manual_tapout_request',
+            'title'          => 'Permintaan Tap-Out Manual',
+            'body'           => "Kendaraan di Slot {$slot->slot_code} meminta bantuan petugas untuk tap-out manual (plat tidak terbaca).",
+            'to_user_id'     => null, // broadcast ke semua staff
+            'transaction_id' => $transaction->id,
+        ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Permintaan terkirim ke petugas. Mohon tunggu sebentar di lokasi slot Anda.'
+        ]);
+    }
+
 }

@@ -24,7 +24,6 @@ const MemberManagement = () => {
         expired_at: ''
     });
 
-    // ── FITUR PENCARIAN SERVER-SIDE & PAGINATION ──
     const fetchCustomers = useCallback(async (query = '') => {
         setIsFetching(true);
         try {
@@ -32,23 +31,20 @@ const MemberManagement = () => {
                 headers,
                 params: { search: query }
             });
-            // Karena backend mereturn paginate(), data array ada di response.data.data.data
-            // Fallback disesuaikan jika struktur json sedikit berbeda
             const customerData = response.data?.data?.data || response.data?.data || [];
             setCustomers(customerData);
         } catch (err) {
-            showMessage('error', '❌ Gagal mengambil data pelanggan.');
+            showMessage('error', 'Gagal mengambil data pelanggan.');
             console.error('Gagal mengambil data:', err);
         } finally {
             setIsFetching(false);
         }
     }, []);
 
-    // ── EFEK DEBOUNCE PENCARIAN ──
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
             fetchCustomers(searchQuery);
-        }, 500); // Tunggu 500ms setelah admin berhenti mengetik
+        }, 500);
 
         return () => clearTimeout(delayDebounceFn);
     }, [searchQuery, fetchCustomers]);
@@ -62,7 +58,6 @@ const MemberManagement = () => {
         setSelectedCustomer(customer);
         setFormData({
             is_active: customer.member?.is_active ?? false,
-            // Format tanggal agar sesuai dengan input type="date"
             expired_at: customer.member?.expired_at ? customer.member.expired_at.split('T')[0] : ''
         });
         setIsModalOpen(true);
@@ -79,10 +74,9 @@ const MemberManagement = () => {
         setIsLoading(true);
 
         try {
-            // Payload menyesuaikan rules backend
             const payload = {
                 is_active: formData.is_active,
-                expired_at: formData.is_active ? formData.expired_at : null // Set null jika dinonaktifkan
+                expired_at: formData.is_active ? formData.expired_at : null
             };
 
             const response = await axios.post(
@@ -91,72 +85,73 @@ const MemberManagement = () => {
                 { headers }
             );
             
-            showMessage('success', `✅ ${response.data.message}`);
+            showMessage('success', response.data.message);
             closeModal();
-            fetchCustomers(searchQuery); // Refresh data setelah update
+            fetchCustomers(searchQuery);
         } catch (error) {
             console.error(error);
             const errMsg = error.response?.data?.message || 'Terjadi kesalahan pada server.';
-            showMessage('error', `❌ Gagal menyimpan data: ${errMsg}`);
+            showMessage('error', `Gagal menyimpan data: ${errMsg}`);
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="p-6">
+        <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-5 pb-4 border-b border-gray-100 gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">Aktivasi Membership</h1>
-                    <p className="text-slate-400 text-sm mt-1">Cari pelanggan yang sudah terdaftar untuk mengaktifkan status keanggotaannya.</p>
+                    <h1 className="text-xl font-bold text-gray-800">Aktivasi Membership</h1>
+                    <p className="text-sm text-gray-500 mt-1">Cari pelanggan yang sudah terdaftar untuk mengaktifkan status keanggotaannya.</p>
                 </div>
             </div>
 
             {/* Alert message */}
             {message.text && (
-                <div className={`mb-4 p-4 rounded-xl text-sm font-semibold border ${
+                <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium border flex items-center gap-2 ${
                     message.type === 'success'
-                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                        : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                        ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                        : 'bg-rose-50 border-rose-100 text-rose-700'
                 }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${message.type === 'success' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
                     {message.text}
                 </div>
             )}
 
             {/* Search Bar */}
-            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-6 flex items-center gap-3">
-                <Search className="text-slate-400 shrink-0" size={20} />
+            <div className="relative mb-5">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                     type="text"
                     placeholder="Cari nama, email, atau plat nomor pelanggan..."
-                    className="bg-transparent border-none text-white focus:outline-none w-full placeholder:text-slate-500"
+                    className="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-gray-400 focus:bg-white transition-colors placeholder:text-gray-400"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
 
             {/* Table */}
-            <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden overflow-x-auto">
+            <div className="border border-gray-200 rounded-xl overflow-hidden overflow-x-auto">
                 {isFetching ? (
-                    <div className="py-16 text-center text-slate-500 font-medium">
+                    <div className="py-16 text-center text-gray-400 text-sm">
                         Mencari data pelanggan...
                     </div>
                 ) : (
-                    <table className="w-full text-left text-sm text-slate-300">
-                        <thead className="bg-slate-900/50 text-slate-400 border-b border-slate-700 uppercase text-xs">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-gray-50 text-gray-500 border-b border-gray-200 text-xs font-semibold uppercase tracking-wide">
                             <tr>
-                                <th className="px-6 py-4 font-semibold">Pelanggan</th>
-                                <th className="px-6 py-4 font-semibold">Plat Nomor</th>
-                                <th className="px-6 py-4 font-semibold">Status Member</th>
-                                <th className="px-6 py-4 font-semibold">Berlaku Hingga</th>
-                                <th className="px-6 py-4 font-semibold text-right">Aksi</th>
+                                <th className="px-6 py-3.5">Pelanggan</th>
+                                <th className="px-6 py-3.5">Plat Nomor</th>
+                                <th className="px-6 py-3.5">Status Member</th>
+                                <th className="px-6 py-3.5">Berlaku Hingga</th>
+                                <th className="px-6 py-3.5 text-right">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-700/50">
+                        <tbody className="divide-y divide-gray-100">
                             {customers.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan="5" className="px-6 py-12 text-center text-gray-400 text-sm">
                                         Tidak ada data pelanggan yang cocok dengan pencarian.
                                     </td>
                                 </tr>
@@ -168,42 +163,41 @@ const MemberManagement = () => {
                                     const plate = customer.registered_plate_number ?? '-';
                                     const isActive = customer.member?.is_active ?? false;
                                     
-                                    // Format tanggal lokal
                                     const expiredAt = customer.member?.expired_at 
                                         ? new Date(customer.member.expired_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
                                         : '-';
 
                                     return (
-                                        <tr key={customer.id} className="hover:bg-slate-700/30 transition-colors">
+                                        <tr key={customer.id} className="hover:bg-gray-50/70 transition-colors">
                                             <td className="px-6 py-4">
-                                                <div className="font-medium text-white">{name}</div>
-                                                <div className="text-xs text-slate-500">{phone} • {email}</div>
+                                                <div className="font-medium text-gray-800">{name}</div>
+                                                <div className="text-xs text-gray-400 mt-0.5">{phone} · {email}</div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="px-3 py-1 bg-slate-900 border border-slate-600 rounded-md font-mono text-white tracking-widest text-xs">
+                                                <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-md font-mono text-gray-700 tracking-widest text-xs">
                                                     {plate}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
                                                 {isActive ? (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                                        <ShieldCheck size={14} /> Aktif
+                                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Aktif
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-600">
-                                                        <ShieldAlert size={14} /> Nonaktif
+                                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-300" /> Nonaktif
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-gray-600">
                                                 {expiredAt}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <button
                                                     onClick={() => openModal(customer)}
-                                                    className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600/20 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-lg transition-colors text-xs font-medium border border-indigo-500/30"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 hover:text-gray-800 rounded-lg transition-colors text-xs font-medium border border-gray-200"
                                                 >
-                                                    <Edit2 size={14} /> Kelola Status
+                                                    <Edit2 size={13} /> Kelola Status
                                                 </button>
                                             </td>
                                         </tr>
@@ -217,43 +211,43 @@ const MemberManagement = () => {
 
             {/* Modal Edit Status */}
             {isModalOpen && selectedCustomer && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm">
-                    <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-md overflow-hidden shadow-2xl">
-                        <div className="flex justify-between items-center p-6 border-b border-slate-700 bg-slate-800/50">
-                            <h2 className="text-xl font-bold text-white">Kelola Membership</h2>
-                            <button onClick={closeModal} className="text-slate-400 hover:text-white transition-colors">
-                                <X size={24} />
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-md overflow-hidden shadow-2xl">
+                        <div className="flex justify-between items-center p-6 border-b border-gray-100">
+                            <h2 className="text-lg font-bold text-gray-800">Kelola Membership</h2>
+                            <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <X size={20} />
                             </button>
                         </div>
 
                         {/* Info Pelanggan (Read-only) */}
-                        <div className="p-6 pb-2 border-b border-slate-700/50 bg-slate-900/30">
+                        <div className="p-6 pb-2 border-b border-gray-100 bg-gray-50/50">
                             <div className="flex items-start gap-3 mb-4">
-                                <div className="p-2 bg-slate-800 rounded-lg border border-slate-700 text-indigo-400">
-                                    <User size={20} />
+                                <div className="p-2 bg-white rounded-lg border border-gray-200 text-gray-400">
+                                    <User size={18} />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-semibold text-white">{selectedCustomer.user?.name}</p>
-                                    <p className="text-xs text-slate-400">{selectedCustomer.user?.email}</p>
+                                    <p className="text-sm font-semibold text-gray-800">{selectedCustomer.user?.name}</p>
+                                    <p className="text-xs text-gray-500">{selectedCustomer.user?.email}</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-3 mb-4">
-                                <div className="p-2 bg-slate-800 rounded-lg border border-slate-700 text-slate-400">
-                                    <Car size={20} />
+                                <div className="p-2 bg-white rounded-lg border border-gray-200 text-gray-400">
+                                    <Car size={18} />
                                 </div>
                                 <div>
-                                    <p className="text-xs text-slate-500">Plat Terdaftar</p>
-                                    <p className="font-mono text-sm font-bold text-white tracking-widest">{selectedCustomer.registered_plate_number}</p>
+                                    <p className="text-xs text-gray-400">Plat Terdaftar</p>
+                                    <p className="font-mono text-sm font-semibold text-gray-800 tracking-widest">{selectedCustomer.registered_plate_number}</p>
                                 </div>
                             </div>
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-5">
                             {/* Toggle Status */}
-                            <div className="flex items-center justify-between p-4 bg-slate-900 rounded-xl border border-slate-700">
+                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
                                 <div>
-                                    <p className="text-sm font-medium text-white">Status Membership</p>
-                                    <p className={`text-xs mt-1 ${formData.is_active ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                    <p className="text-sm font-medium text-gray-800">Status Membership</p>
+                                    <p className={`text-xs mt-1 ${formData.is_active ? 'text-emerald-600' : 'text-gray-400'}`}>
                                         {formData.is_active ? 'Aktif' : 'Nonaktif / Reguler'}
                                     </p>
                                 </div>
@@ -261,7 +255,7 @@ const MemberManagement = () => {
                                     type="button"
                                     onClick={() => setFormData(prev => ({ ...prev, is_active: !prev.is_active }))}
                                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                                        formData.is_active ? 'bg-emerald-500' : 'bg-slate-600'
+                                        formData.is_active ? 'bg-emerald-500' : 'bg-gray-300'
                                     }`}
                                 >
                                     <span
@@ -272,9 +266,9 @@ const MemberManagement = () => {
                                 </button>
                             </div>
 
-                            {/* Tanggal Kedaluwarsa - Hanya aktif jika is_active true */}
+                            {/* Tanggal Kedaluwarsa */}
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Berlaku Hingga
                                 </label>
                                 <input
@@ -283,20 +277,20 @@ const MemberManagement = () => {
                                     disabled={!formData.is_active}
                                     value={formData.expired_at}
                                     onChange={(e) => setFormData(prev => ({ ...prev, expired_at: e.target.value }))}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:border-gray-400 focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                             </div>
 
-                            <div className="pt-4 flex gap-3">
+                            <div className="pt-2 flex gap-3">
                                 <button
                                     type="button" onClick={closeModal}
-                                    className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-lg font-medium transition-colors"
+                                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-lg font-medium transition-colors text-sm"
                                 >
                                     Batal
                                 </button>
                                 <button
                                     type="submit" disabled={isLoading}
-                                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50"
+                                    className="flex-1 bg-gray-800 hover:bg-gray-900 text-white py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 text-sm"
                                 >
                                     {isLoading ? 'Menyimpan...' : 'Simpan Status'}
                                 </button>

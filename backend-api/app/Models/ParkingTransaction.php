@@ -20,7 +20,8 @@ class ParkingTransaction extends Model
         'is_violation',
         'duration_minutes', // ➕ Tambahkan kolom durasi menit dari alter migration
         'fee',              // ➕ Tambahkan kolom nominal biaya dari alter migration
-        'revenue_config_id' // ➕ Tambahkan kolom FK acuan tarif dari alter migration
+        'revenue_config_id', // ➕ Tambahkan kolom FK acuan tarif dari alter migration
+        'detected_slot_id'
     ];
 
     // Beritahu Laravel tipe data rill masing-masing kolom untuk mempermudah kalkulasi
@@ -54,5 +55,15 @@ class ParkingTransaction extends Model
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function detectedSlot()
+    {
+        return $this->belongsTo(ParkingSlot::class, 'detected_slot_id');
+    }
+
+    public function manualVerification()
+    {
+        return $this->hasOne(ManualVerification::class, 'transaction_id');
     }
 }

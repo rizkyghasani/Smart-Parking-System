@@ -9,6 +9,9 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Customer\AuthCustomerController;
 use App\Http\Controllers\Api\Customer\CustomerDashboardController;
+use App\Http\Controllers\Api\Staff\StaffController;
+use App\Http\Controllers\Api\Admin\AdminTransactionController;
+use App\Http\Controllers\Api\Admin\AdminNotificationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -43,6 +46,10 @@ Route::prefix('parking')->group(function () {
 
     // 4. Endpoint Tap-Out untuk simulasi keluar
     Route::post('/tap-out', [ParkingController::class, 'tapOut']);
+
+    Route::post('/simulate-sensor', [ParkingController::class, 'simulateSensor']);
+
+    Route::post('/request-manual-tapout', [ParkingController::class, 'requestManualTapOut']);
 });
 
 /**
@@ -63,6 +70,13 @@ Route::prefix('admin/auth')->group(function () {
  * URL: /api/admin/...
  */
 Route::prefix('admin')->middleware('auth:sanctum')->group(function () {
+
+// 🔔 Rute Baru: Supervisi Notifikasi oleh Admin
+    Route::get('/notifications', [AdminNotificationController::class, 'index']);
+    Route::post('/notifications/{id}/retrigger', [AdminNotificationController::class, 'retrigger']);
+    Route::delete('/notifications/{id}', [AdminNotificationController::class, 'destroy']);
+
+    Route::get('/manual-verifications', [\App\Http\Controllers\Api\Admin\AdminTransactionController::class, 'manualVerificationHistory']);
 
     Route::get('/dashboard-stats', [DashboardController::class, 'getStats']);   
     Route::get('/transactions', [\App\Http\Controllers\Api\Admin\AdminTransactionController::class, 'index']);
@@ -89,6 +103,28 @@ Route::prefix('admin')->middleware('auth:sanctum')->group(function () {
     Route::post('/members/customers/{id}/toggle', [MemberController::class, 'toggleMembership']); // Aktivasi/Deaktivasi
     Route::delete('/members/{id}', [MemberController::class, 'destroy']); // Hapus Permanen
 
+});
+
+Route::prefix('staff')->middleware('auth:sanctum')->group(function () {
+    Route::get('/dashboard', [StaffController::class, 'dashboard']);
+    Route::get('/active-transactions', [StaffController::class, 'activeTransactions']);
+
+    Route::get('/manual-verifications', [StaffController::class, 'manualVerificationHistory']);
+    
+    // 🌟 Tap-out via klik slot di denah
+    Route::post('/tap-out/{slotId}', [StaffController::class, 'manualTapOut']);
+    
+    // 🌟 Tap-out via input plat nomor manual — route TERPISAH, nama method BEDA
+    Route::post('/tap-out-by-plate', [StaffController::class, 'manualTapOutByPlate']);
+    
+    // routes/api.php — grup staff
+    Route::post('/verify-tap-out', [StaffController::class, 'manualVerificationTapOut']);
+
+    Route::post('/override-slot', [StaffController::class, 'overrideSlot']);
+    Route::get('/notifications', [StaffController::class, 'notifications']);
+    Route::patch('/notifications/{id}/read', [StaffController::class, 'markNotificationRead']);
+    Route::patch('/notifications/clear-all', [StaffController::class, 'clearAllNotifications']);
+    // ❌ HAPUS baris "Route::post('/tap-out', ...)" yang lama — itu sumber bentroknya
 });
 
 Route::prefix('customer')->group(function () {

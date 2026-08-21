@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { History, Search, ChevronDown, ChevronLeft, ChevronRight, Clock, MapPin, Car } from 'lucide-react';
+import { History, Search, ChevronDown, ChevronLeft, ChevronRight, Clock, MapPin, Car, RefreshCw } from 'lucide-react';
 
 const AdminParkingHistory = () => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
-    
-    // State untuk Pagination & Search
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(10);
     const [search, setSearch] = useState('');
@@ -14,12 +14,14 @@ const AdminParkingHistory = () => {
     const [totalData, setTotalData] = useState(0);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    
-    // Gunakan token admin (sesuaikan dengan nama key di localStorage kamu, misal 'token' atau 'admin_token')
     const token = localStorage.getItem('token') || localStorage.getItem('admin_token');
 
-    const fetchTransactions = async () => {
-        setLoading(true);
+    const fetchTransactions = async (isManualRefresh = false) => {
+        if (isManualRefresh) {
+            setIsRefreshing(true);
+        } else {
+            setLoading(true);
+        }
         try {
             const response = await axios.get(`${API_URL}/admin/transactions`, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -35,12 +37,11 @@ const AdminParkingHistory = () => {
             console.error("Gagal mengambil data riwayat admin:", error);
         } finally {
             setLoading(false);
+            setIsRefreshing(false);
         }
     };
 
-    // Trigger fetch ketika page, limit, atau search berubah
     useEffect(() => {
-        // Gunakan debounce sederhana untuk search agar tidak spam API saat mengetik
         const delayDebounce = setTimeout(() => {
             fetchTransactions();
         }, 500);
@@ -48,86 +49,99 @@ const AdminParkingHistory = () => {
         return () => clearTimeout(delayDebounce);
     }, [page, limit, search]);
 
+    const handleManualRefresh = () => {
+        if (isRefreshing || loading) return;
+        fetchTransactions(true);
+    };
+
     return (
-        <div className="bg-slate-900 p-6 rounded-3xl border border-slate-800 shadow-xl">
+        <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm">
             {/* HEADER, SEARCH & LIMIT */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-4 border-b border-gray-100">
                 <div>
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <History className="text-blue-500" size={24} /> Riwayat Seluruh Transaksi
+                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        <History size={20} className="text-gray-400" /> Riwayat Seluruh Transaksi
                     </h2>
-                    <p className="text-sm text-slate-400 mt-1">Total {totalData} transaksi tercatat di sistem.</p>
+                    <p className="text-sm text-gray-500 mt-1">Total {totalData} transaksi tercatat di sistem.</p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-center gap-3">
                     {/* Search Bar */}
                     <div className="relative w-full sm:w-64">
-                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input 
                             type="text"
-                            placeholder="Cari Plat Nomor..."
+                            placeholder="Cari plat nomor..."
                             value={search}
                             onChange={(e) => {
                                 setSearch(e.target.value);
-                                setPage(1); // Reset ke halaman 1 saat mencari
+                                setPage(1);
                             }}
-                            className="w-full bg-slate-950 border border-slate-700 text-white text-sm rounded-xl py-2 pl-10 pr-4 focus:outline-none focus:border-blue-500 transition-colors"
+                            className="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-xl py-2.5 pl-9 pr-4 focus:outline-none focus:border-gray-400 focus:bg-white transition-colors"
                         />
                     </div>
 
                     {/* Limit Dropdown */}
                     <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500 uppercase tracking-widest font-bold">Limit:</span>
+                        <span className="text-xs text-gray-400 font-medium whitespace-nowrap">Limit:</span>
                         <div className="relative">
                             <select 
                                 value={limit}
                                 onChange={(e) => {
-                                    // 🌟 BACA VALUE, JIKA BUKAN 'all', UBAH JADI NUMBER
                                     const val = e.target.value;
                                     setLimit(val === 'all' ? 'all' : Number(val));
                                     setPage(1);
                                 }}
-                                className="appearance-none bg-slate-950 border border-slate-700 text-white text-sm py-2 pl-4 pr-10 rounded-xl focus:outline-none focus:border-blue-500 cursor-pointer font-bold"
+                                className="appearance-none bg-gray-50 border border-gray-200 text-gray-700 text-sm py-2.5 pl-3.5 pr-9 rounded-xl focus:outline-none focus:border-gray-400 cursor-pointer font-semibold"
                             >
                                 <option value={10}>10</option>
                                 <option value={25}>25</option>
                                 <option value={50}>50</option>
                                 <option value={100}>100</option>
-                                {/* 🌟 TAMBAHKAN OPSI SEMUA DI SINI */}
                                 <option value="all">Semua</option>
                             </select>
-                            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                         </div>
                     </div>
+
+                    {/* Tombol Refresh Manual */}
+                    <button
+                        onClick={handleManualRefresh}
+                        disabled={isRefreshing || loading}
+                        title="Refresh data"
+                        className="p-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-gray-500 hover:text-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                    >
+                        <RefreshCw size={15} className={isRefreshing ? 'animate-spin' : ''} />
+                    </button>
                 </div>
             </div>
 
             {/* TABEL DATA */}
-            <div className="overflow-x-auto overflow-y-auto max-h-[600px] border border-slate-700/50 rounded-xl custom-scrollbar relative">
+            <div className="overflow-x-auto overflow-y-auto max-h-[600px] border border-gray-200 rounded-xl custom-scrollbar relative">
                 {loading && (
-                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm z-20 flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-20 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-2 border-gray-300 border-t-gray-600"></div>
                     </div>
                 )}
                 <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-950 sticky top-0 z-10 shadow-md">
-                        <tr className="text-slate-400 text-xs uppercase tracking-widest font-bold border-b border-slate-800">
-                            <th className="py-4 px-5 whitespace-nowrap bg-slate-950">Waktu & Durasi</th>
-                            <th className="py-4 px-5 whitespace-nowrap bg-slate-950">Kendaraan & Slot</th>
-                            <th className="py-4 px-5 whitespace-nowrap bg-slate-950">Tipe Pelanggan</th>
-                            <th className="py-4 px-5 whitespace-nowrap bg-slate-950">Total Pendapatan</th>
+                    <thead className="bg-gray-50 sticky top-0 z-10">
+                        <tr className="text-gray-500 text-xs font-semibold uppercase tracking-wide border-b border-gray-200">
+                            <th className="py-3.5 px-5 whitespace-nowrap bg-gray-50">Waktu & Durasi</th>
+                            <th className="py-3.5 px-5 whitespace-nowrap bg-gray-50">Kendaraan & Slot</th>
+                            <th className="py-3.5 px-5 whitespace-nowrap bg-gray-50">Tipe Pelanggan</th>
+                            <th className="py-3.5 px-5 whitespace-nowrap bg-gray-50">Total Pendapatan</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-gray-100">
                         {transactions.length > 0 ? (
                             transactions.map((tx) => (
-                                <tr key={tx.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                                <tr key={tx.id} className="hover:bg-gray-50/70 transition-colors">
                                     {/* Waktu & Durasi */}
                                     <td className="py-4 px-5">
-                                        <div className="font-mono text-slate-200">
+                                        <div className="text-gray-700 font-medium">
                                             {new Date(tx.entry_time).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                         </div>
-                                        <div className="text-[11px] text-slate-500 flex items-center gap-1.5 mt-1 font-medium">
+                                        <div className="text-xs text-gray-400 flex items-center gap-1.5 mt-1">
                                             <Clock size={12} /> {tx.duration_minutes !== null ? `${tx.duration_minutes} Menit` : 'Aktif / Belum Selesai'}
                                         </div>
                                     </td>
@@ -135,13 +149,13 @@ const AdminParkingHistory = () => {
                                     {/* Plat & Slot */}
                                     <td className="py-4 px-5">
                                         <div className="flex items-center gap-3">
-                                            <div className="p-2 bg-slate-950 border border-slate-700 rounded-lg">
-                                                <Car size={16} className="text-slate-400" />
+                                            <div className="p-2 bg-gray-50 border border-gray-200 rounded-lg">
+                                                <Car size={16} className="text-gray-400" />
                                             </div>
                                             <div>
-                                                <p className="font-black text-white tracking-widest text-base">{tx.plate_number}</p>
-                                                <p className="text-xs text-emerald-400 font-bold mt-0.5 flex items-center gap-1">
-                                                    <MapPin size={12} /> Slot {tx.slot?.slot_code || '-'}
+                                                <p className="font-semibold text-gray-800 tracking-wide text-sm">{tx.plate_number}</p>
+                                                <p className="text-xs text-gray-500 font-medium mt-0.5 flex items-center gap-1">
+                                                    <MapPin size={11} /> Slot {tx.slot?.slot_code || '-'}
                                                 </p>
                                             </div>
                                         </div>
@@ -150,19 +164,19 @@ const AdminParkingHistory = () => {
                                     {/* Tipe Pelanggan */}
                                     <td className="py-4 px-5">
                                         {tx.is_member ? (
-                                            <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-black rounded-lg uppercase tracking-wider border border-emerald-500/20">
-                                                Member
+                                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Member
                                             </span>
                                         ) : (
-                                            <span className="px-3 py-1 bg-slate-700/50 text-slate-300 text-[10px] font-black rounded-lg uppercase tracking-wider border border-slate-700">
-                                                Umum
+                                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-gray-300" /> Umum
                                             </span>
                                         )}
                                     </td>
 
                                     {/* Biaya */}
                                     <td className="py-4 px-5">
-                                        <div className={`font-black ${tx.exit_time ? 'text-white' : 'text-slate-500'}`}>
+                                        <div className={`font-semibold ${tx.exit_time ? 'text-gray-800' : 'text-gray-400'}`}>
                                             {tx.exit_time ? `Rp ${tx.fee?.toLocaleString('id-ID') || 0}` : 'Proses...'}
                                         </div>
                                     </td>
@@ -170,7 +184,7 @@ const AdminParkingHistory = () => {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="4" className="py-16 text-center text-slate-500 italic bg-slate-900/50">
+                                <td colSpan="4" className="py-16 text-center text-gray-400 text-sm">
                                     Data transaksi tidak ditemukan.
                                 </td>
                             </tr>
@@ -181,24 +195,24 @@ const AdminParkingHistory = () => {
 
             {/* KONTROL PAGINATION */}
             {totalData > 0 && (
-                <div className="mt-6 flex items-center justify-between border-t border-slate-800 pt-5">
-                    <span className="text-sm text-slate-400">
-                        Menampilkan Halaman <span className="font-bold text-white">{page}</span> dari <span className="font-bold text-white">{lastPage}</span>
+                <div className="mt-5 flex items-center justify-between pt-4 border-t border-gray-100">
+                    <span className="text-xs text-gray-500">
+                        Halaman <span className="font-semibold text-gray-700">{page}</span> dari <span className="font-semibold text-gray-700">{lastPage}</span>
                     </span>
                     <div className="flex items-center gap-2">
                         <button 
                             onClick={() => setPage(page - 1)}
                             disabled={page === 1}
-                            className="p-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-400 hover:text-white hover:border-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                            className="p-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg text-gray-500 hover:text-gray-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            <ChevronLeft size={18} />
+                            <ChevronLeft size={16} />
                         </button>
                         <button 
                             onClick={() => setPage(page + 1)}
                             disabled={page === lastPage}
-                            className="p-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-400 hover:text-white hover:border-blue-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                            className="p-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg text-gray-500 hover:text-gray-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            <ChevronRight size={18} />
+                            <ChevronRight size={16} />
                         </button>
                     </div>
                 </div>

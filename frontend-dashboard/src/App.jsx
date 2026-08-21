@@ -1,17 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios'; // 🌟 PERBAIKAN: Impor axios diperbaiki dari 'axios'
+import axios from 'axios';
 import AdminLayout from './components/admin/AdminLayout';
 import LoginAdmin from './components/auth/LoginAdmin';
 import RegisterAdmin from './components/auth/RegisterAdmin';
 import LoginStaff from './components/auth/LoginStaff';
-import StaffDashboard from './components/staff/StaffDashboard';
+import StaffLayout from './components/staff/StaffLayout.jsx';
 import CustomerDashboard from './components/customer/CustomerDashboard';
 import LoginCustomer from './components/customer/LoginCustomer';
 import RegisterCustomer from './components/customer/RegisterCustomer';
 import SpatialParkingLayout from './SpatialParkingLayout';
 import { echo } from './services/echo.js';
 import CameraStream from './components/CameraStream';
-import { Car, Monitor, Activity, LogOut, Scan, RefreshCcw, AlertCircle, X, CheckCircle, Receipt } from 'lucide-react';
+import {
+  Car, Monitor, Activity, LogOut, Scan, RefreshCcw, AlertCircle, X, CheckCircle, Receipt,
+  Camera, CameraOff, HardHat, UserRound, ShieldCheck,
+} from 'lucide-react';
 
 const AI_URL   = 'http://localhost:8001';
 const API_URL  = 'http://localhost:8000/api';
@@ -119,6 +122,43 @@ function ParkingModal({ modal, onClose }) {
     </div>
   );
 }
+
+// =============================================================
+// 🌟 KOMPONEN BARU (VISUAL SAJA): Nav bar portal terpadu
+// Menggantikan tiga tombol yang sebelumnya tersebar di tiap pojok layar
+// dengan satu bar navigasi terpusat & konsisten — tanpa mengubah
+// perilaku navigasi apa pun (masih memanggil setCurrentPage yang sama).
+// =============================================================
+function PortalNavBar({ onSelectStaff, onSelectCustomer, onSelectAdmin }) {
+  const items = [
+    { key: 'staff',    label: 'Portal Petugas',   icon: HardHat,     onClick: onSelectStaff },
+    { key: 'customer', label: 'Portal Pelanggan', icon: UserRound,   onClick: onSelectCustomer },
+    { key: 'admin',    label: 'Panel Admin',      icon: ShieldCheck, onClick: onSelectAdmin },
+  ];
+
+  return (
+    <nav
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1
+                 bg-slate-800/90 backdrop-blur-md border border-slate-700/60 rounded-2xl
+                 p-1.5 shadow-2xl shadow-black/40"
+    >
+      {items.map(({ key, label, icon: Icon, onClick }, idx) => (
+        <React.Fragment key={key}>
+          {idx > 0 && <div className="w-px h-5 bg-slate-700/80" />}
+          <button
+            onClick={onClick}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold
+                       tracking-wide text-slate-300 hover:text-white hover:bg-slate-700/70
+                       transition-all"
+          >
+            <Icon size={15} strokeWidth={2.25} />
+            <span className="hidden sm:inline">{label}</span>
+          </button>
+        </React.Fragment>
+      ))}
+    </nav>
+  );
+}
  
 // =============================================================
 // KOMPONEN UTAMA
@@ -153,7 +193,7 @@ function App() {
             setCurrentPage('admin_dashboard');
         } else if (staffToken) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${staffToken}`;
-            setCurrentPage('StaffDashboard');
+            setCurrentPage('StaffLayout');
         } else if (customerToken) {
             axios.defaults.headers.common['Authorization'] = `Bearer ${customerToken}`;
             setCurrentPage('CustomerDashboard');
@@ -168,8 +208,6 @@ function App() {
       fetchSlots();
       const channel = echo.channel('parking-channel');
       channel.listen('.SlotUpdated', (e) => {
-        // Merge, bukan replace — supaya field seperti x_coord/y_coord
-        // yang mungkin tidak disertakan di payload broadcast tidak hilang
         setSlots(prev => prev.map(s =>
           s.id === e.slot.id ? { ...s, ...e.slot } : s
         ));
@@ -277,8 +315,6 @@ function App() {
 
       const slot = slots.find(s => s.id === data.parking_slot_id) || slots.find(s => s.slot_code === data.allocated_slot);
 
-      // 🌟 TAMBAHKAN BARIS INI: 
-      // Memaksa UI untuk langsung menyorot slot yang di-alokasikan backend
       setSelectedSlot(slot); 
 
       setModal({
@@ -329,6 +365,18 @@ function App() {
       alert(error.response?.data?.message || 'Gagal memproses kendaraan keluar.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 🌟 BARU: Guest meminta bantuan petugas untuk tap-out manual
+  // (kasus plat tidak terbaca / masuk pakai e-money tanpa plat)
+  const handleRequestManualTapOut = async (slotId) => {
+    if (!window.confirm('Kirim permintaan bantuan petugas untuk tap-out manual? Mohon tunggu di lokasi slot Anda.')) return;
+    try {
+      await axios.post(`${API_URL}/parking/request-manual-tapout`, { slot_id: slotId });
+      alert('✅ Permintaan terkirim ke petugas. Mohon tunggu sebentar di lokasi slot Anda.');
+    } catch (error) {
+      alert(error.response?.data?.message || 'Gagal mengirim permintaan bantuan.');
     }
   };
  
@@ -404,15 +452,15 @@ function App() {
   if (currentPage === 'login_staff') {
     return (
       <LoginStaff
-        onLoginSuccess={() => setCurrentPage('StaffDashboard')}
+        onLoginSuccess={() => setCurrentPage('StaffLayout')}
         onBackToMain={() => setCurrentPage('user')}
       />
     );
   }
  
-  if (currentPage === 'StaffDashboard') {
+  if (currentPage === 'StaffLayout') {
     return (
-      <StaffDashboard
+      <StaffLayout
         onLogoutSuccess={() => setCurrentPage('user')}
       />
     );
@@ -423,6 +471,7 @@ function App() {
           <LoginCustomer
               onLoginSuccess={() => setCurrentPage('CustomerDashboard')}
               onNavigateToRegister={() => setCurrentPage('customer_register')}
+              onBack={() => setCurrentPage('user')}
           />
       );
   }
@@ -432,6 +481,7 @@ function App() {
           <RegisterCustomer
               onRegisterSuccess={() => setCurrentPage('customer_login')}
               onNavigateToLogin={() => setCurrentPage('customer_login')}
+              onBack={() => setCurrentPage('user')}
           />
       );
   }
@@ -442,9 +492,6 @@ function App() {
       );
   }
  
-  // 🌟 PERBAIKAN LAYOUT: kamera & denah TIDAK LAGI disejajarkan dalam grid 3 kolom.
-  // Denah butuh lebar penuh (kanvas ~896px min) sehingga dipisah ke barisnya sendiri,
-  // full width, di bawah kamera — bukan dipaksa masuk kolom sempit lg:col-span-1.
   function renderMainParkingContent() {
     return (
       <div className="max-w-6xl mx-auto py-8 px-4">
@@ -467,7 +514,8 @@ function App() {
                         : 'bg-emerald-600/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-600 hover:text-white'
                 }`}
             >
-                <span>{isCameraEnabled ? '📷 Matikan Kamera' : '📷 Nyalakan Kamera'}</span>
+                {isCameraEnabled ? <CameraOff size={15} /> : <Camera size={15} />}
+                <span>{isCameraEnabled ? 'Matikan Kamera' : 'Nyalakan Kamera'}</span>
             </button>
  
             <button
@@ -482,7 +530,6 @@ function App() {
           </div>
         </header>
  
-        {/* BARIS 1: Kamera & panel deteksi plat — full width, sendiri */}
         <div className="bg-slate-800 p-4 rounded-[2rem] border border-slate-700 shadow-2xl mb-8">
           <div className="flex items-center justify-between mb-4 px-2">
             <h2 className="text-sm font-bold flex items-center gap-2 text-slate-400 uppercase tracking-widest">
@@ -548,7 +595,7 @@ function App() {
           </div>
         </div>
  
-        {/* BARIS 2: Denah parkir — full width, tidak lagi dipaksa masuk kolom sempit */}
+        {/* 🌟 Prop baru onRequestManualTapOut disambungkan ke SpatialParkingLayout */}
         <SpatialParkingLayout
             slots={slots}
             candidates={candidates}
@@ -556,6 +603,8 @@ function App() {
             setSelectedSlot={setSelectedSlot}
             handleTapOut={handleTapOut}
             onRefreshCandidates={fetchSlots}
+            onRequestManualTapOut={handleRequestManualTapOut}
+            //isCustomerView={true}
         />
       </div>
     );
@@ -563,38 +612,11 @@ function App() {
  
 return (
     <div className="relative min-h-screen bg-slate-900">
-      <div className="absolute bottom-6 left-6 z-40">
-        <button
-          onClick={() => setCurrentPage('login_staff')}
-          className="bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-white px-4 py-2.5
-                    rounded-2xl text-xs font-bold tracking-wide shadow-lg border border-slate-700/60
-                    flex items-center space-x-2 backdrop-blur-sm transition-all"
-        >
-          <span>👷</span> <span>Portal Petugas</span>
-        </button>
-      </div>
- 
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40">
-        <button
-          onClick={() => setCurrentPage('customer_login')}
-          className="bg-indigo-600/90 hover:bg-indigo-500 text-white px-4 py-2.5
-                     rounded-2xl text-xs font-bold tracking-wide shadow-lg border border-indigo-400/30
-                     flex items-center space-x-2 backdrop-blur-sm transition-all"
-        >
-          <span>🚗</span> <span>Portal Pelanggan</span>
-        </button>
-      </div>
- 
-      <div className="absolute bottom-6 right-6 z-40">
-        <button
-          onClick={() => setCurrentPage('login')}
-          className="bg-slate-800/80 hover:bg-slate-700 text-slate-200 hover:text-white px-4 py-2.5
-                     rounded-2xl text-xs font-bold tracking-wide shadow-lg border border-slate-700/60
-                     flex items-center space-x-2 backdrop-blur-sm transition-all"
-        >
-          <span>🔐</span> <span>Panel Admin</span>
-        </button>
-      </div>
+      <PortalNavBar
+        onSelectStaff={() => setCurrentPage('login_staff')}
+        onSelectCustomer={() => setCurrentPage('customer_login')}
+        onSelectAdmin={() => setCurrentPage('login')}
+      />
  
       <ParkingModal modal={modal} onClose={closeModal} />
       {renderMainParkingContent()}

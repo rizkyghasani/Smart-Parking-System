@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
-import { Car, LogOut, ArrowUp, ArrowDown, Activity, RefreshCcw, Calculator, X } from 'lucide-react';
+import { Car, LogOut, ArrowUp, ArrowDown, Activity, RefreshCcw, Calculator, X, LifeBuoy } from 'lucide-react';
 
-// Tambahkan isCustomerView di dalam kurung kurawal
-const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelectedSlot, handleTapOut, onRefreshCandidates, isCustomerView = false }) => {
+// 🌟 PERBAIKAN: Tambahkan onRequestManualTapOut pada parameter props
+const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelectedSlot, handleTapOut, onRefreshCandidates, isCustomerView = false, onSlotClick, onRequestManualTapOut, readOnly = false, showDijkstraPanel = false }) => {
     const [showDebug, setShowDebug] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [detailCandidate, setDetailCandidate] = useState(null);
+    const [isRequestingHelp, setIsRequestingHelp] = useState(false);
 
     const SCALE = 16;
     const Y_OFFSET = 3;
     const ROAD_GAP_EXTRA = 2;
     const ROW_SPLIT_Y = 8;
-    const CANVAS_WIDTH_M = 56;
+    const CANVAS_WIDTH_M = 55;
     const CANVAS_HEIGHT_M = 21 + ROAD_GAP_EXTRA - Y_OFFSET;
     const SLOT_WIDTH_M = 2.2;
     const SLOT_HEIGHT_M = 4.5;
@@ -45,7 +46,25 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
         setTimeout(() => setIsRefreshing(false), 500);
     };
 
-    // 🌟 PERBAIKAN DI SINI: Memastikan data string dari DB dikonversi jadi Number
+    const handleSlotClick = (slot) => {
+        setSelectedSlot(slot);
+        
+        if (slot.status === 'available' && onSlotClick) {
+            onSlotClick(slot);
+        }
+    };
+
+    // 🌟 BARU: kirim permintaan bantuan petugas untuk slot yang sedang dipilih
+    const handleRequestHelp = async () => {
+        if (!selectedSlot || !onRequestManualTapOut) return;
+        setIsRequestingHelp(true);
+        try {
+            await onRequestManualTapOut(selectedSlot.id);
+        } finally {
+            setIsRequestingHelp(false);
+        }
+    };
+
     const renderCalculationDetails = (candidate) => {
         const { path_names, path_coords } = candidate;
         if (!path_names || path_names.length < 2) return <p className="text-slate-400 italic">Data rute tidak lengkap atau terputus.</p>;
@@ -56,7 +75,6 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                 {path_names.slice(0, -1).map((uName, i) => {
                     const vName = path_names[i + 1];
                     
-                    // 🔧 FIX: Konversi data mentah menjadi tipe Number
                     const u = { x: Number(path_coords[i].x), y: Number(path_coords[i].y) };
                     const v = { x: Number(path_coords[i + 1].x), y: Number(path_coords[i + 1].y) };
 
@@ -99,7 +117,6 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
     return (
         <div className="bg-slate-800 rounded-[2rem] border border-slate-700 shadow-2xl overflow-hidden flex flex-col w-full relative">
 
-            {/* OVERLAY MODAL DETAIL */}
             {detailCandidate && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/80 backdrop-blur-sm">
                     <div className="bg-slate-800 w-full max-w-3xl max-h-full rounded-2xl border border-slate-600 shadow-2xl flex flex-col">
@@ -173,6 +190,8 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                             statusStyles = 'border-rose-500/40 bg-rose-500/10 text-rose-500';
                         } else if (slot.status === 'maintenance') {
                             statusStyles = 'border-yellow-500/40 bg-yellow-500/10 text-yellow-500';
+                        } else if (slot.status === 'violation') {
+                            statusStyles = 'border-rose-500 bg-rose-600/30 text-rose-400 ring-2 ring-rose-500 animate-pulse';
                         }
 
                         const isTopCandidate = candidates.length > 0 && candidates[0].id === slot.id;
@@ -180,23 +199,29 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                             statusStyles = 'border-blue-400 bg-blue-500/20 text-blue-400 ring-2 ring-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.5)]';
                         }
 
+                        const isClickableSimulation = slot.status === 'available' && onSlotClick;
+
                         return (
                             <div
                                 key={slot.id}
-                                onClick={() => setSelectedSlot(slot)}
+                                onClick={() => handleSlotClick(slot)}
                                 style={{ ...getPosition(slot.x_coord, slot.y_coord), width: `${SLOT_WIDTH_M * SCALE}px`, height: `${SLOT_HEIGHT_M * SCALE}px` }}
-                                className={`cursor-pointer flex flex-col items-center justify-center border-2 rounded-md transition-all z-30 ${statusStyles} ${isSelected ? 'ring-4 ring-emerald-400/50 border-emerald-400 shadow-xl shadow-emerald-900/50 scale-110' : ''}`}
+                                className={`
+                                    flex flex-col items-center justify-center border-2 rounded-md transition-all z-30 
+                                    ${statusStyles} 
+                                    ${isSelected ? 'ring-4 ring-emerald-400/50 border-emerald-400 shadow-xl shadow-emerald-900/50 scale-110' : ''} 
+                                    ${isClickableSimulation ? 'cursor-pointer hover:ring-4 hover:ring-white transform hover:scale-105 shadow-lg' : 'cursor-pointer'}
+                                `}
                             >
-                                <span className={`text-[11px] font-black ${slot.status === 'occupied' ? 'mb-0.5' : ''}`}>{slot.slot_code.replace('S', '')}</span>
-                                {slot.status === 'occupied' && <Car size={18} strokeWidth={2.5} />}
+                                <span className={`text-[11px] font-black ${(slot.status === 'occupied' || slot.status === 'violation') ? 'mb-0.5' : ''}`}>{slot.slot_code.replace('S', '')}</span>
+                                {(slot.status === 'occupied' || slot.status === 'violation') && <Car size={18} strokeWidth={2.5} />}
                             </div>
                         );
                     })}
                 </div>
             </div>
 
-            {/* --- PANEL DEBUG & KALKULASI DIJKSTRA --- */}
-            {!isCustomerView && (
+            {!isCustomerView && showDijkstraPanel && (
             <div className="p-4 bg-slate-900 border-t border-slate-700">
                 <button type="button" onClick={() => setShowDebug(!showDebug)} className="flex items-center gap-2 text-[11px] font-bold text-slate-400 hover:text-blue-400 transition-colors uppercase tracking-widest">
                     <Activity size={14} /> {showDebug ? 'Sembunyikan Panel Kalkulasi Dijkstra' : 'Tampilkan Kalkulasi & Daftar Kandidat (SSOT)'}
@@ -260,18 +285,31 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
             </div>
             )}
 
-            {/* AREA AKSI (TAP OUT) */}
-            {!isCustomerView && (
+            {!isCustomerView && !readOnly && (
             <div className="p-6 bg-slate-800 border-t border-slate-700 mt-auto">
                 {selectedSlot && (selectedSlot.status === 'occupied' || selectedSlot.status === 'violation') ? (
-                    <div className="flex items-center justify-between bg-slate-900 p-4 rounded-2xl border border-slate-700">
-                        <div>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Slot Terpilih</p>
-                            <p className="text-2xl font-black text-white">{selectedSlot.slot_code}</p>
+                    <div className="bg-slate-900 p-4 rounded-2xl border border-slate-700 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Slot Terpilih</p>
+                                <p className="text-2xl font-black text-white">{selectedSlot.slot_code}</p>
+                            </div>
+                            <button onClick={() => handleTapOut(selectedSlot.id)} className="bg-rose-600 hover:bg-rose-500 px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg shadow-rose-600/20">
+                                <LogOut size={16} /> Proses Keluar
+                            </button>
                         </div>
-                        <button onClick={() => handleTapOut(selectedSlot.id)} className="bg-rose-600 hover:bg-rose-500 px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg shadow-rose-600/20">
-                            <LogOut size={16} /> Proses Keluar
-                        </button>
+
+                        {/* 🌟 BARU: Tombol kecil sekunder — permintaan bantuan petugas untuk tap-out manual
+                            (kasus plat tidak terbaca / masuk pakai e-money tanpa plat) */}
+                        {onRequestManualTapOut && (
+                            <button
+                                onClick={handleRequestHelp}
+                                disabled={isRequestingHelp}
+                                className="w-full py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest text-amber-500/80 hover:text-amber-400 hover:bg-amber-500/5 border border-transparent hover:border-amber-500/20 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                            >
+                                <LifeBuoy size={13} /> {isRequestingHelp ? 'Mengirim...' : 'Butuh Bantuan Petugas (Plat Tidak Terbaca)'}
+                            </button>
+                        )}
                     </div>
                 ) : (
                     <div className="text-center p-4 border-2 border-dashed border-slate-700 rounded-xl bg-slate-900/50">
