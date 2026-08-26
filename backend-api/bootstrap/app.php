@@ -12,9 +12,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Mengaktifkan CORS secara global
+        // Mengaktifkan CORS secara global dan pengecualian CSRF
         $middleware->validateCsrfTokens(except: [
             'api/*', // Kecualikan API dari pengecekan CSRF agar React bisa POST
+        ]);
+
+        // 🌟 DAFTARKAN ALIAS MIDDLEWARE ROLE DI SINI
+        $middleware->alias([
+            'role' => \App\Http\Middleware\CheckRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

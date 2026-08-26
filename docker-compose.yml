@@ -62,9 +62,13 @@ services:
       - "8001:8001"
     volumes:
       - ./ai-vision-service:/app
-    # Tetap bisa akses network backend jika diperlukan
+      # Cache model EasyOCR agar tidak download ulang ~100MB setiap container dibuat ulang
+      - easyocr_cache:/root/.EasyOCR
+    environment:
+      # Di dalam jaringan Docker, backend diakses via nama service (bukan 127.0.0.1)
+      - LARAVEL_API_URL=http://backend:8000/api/parking/validate
     depends_on:
-      - redis
+      - backend
 
   # Backend API (Terminal 4: php artisan serve)
   backend:
@@ -100,3 +104,4 @@ services:
 
 volumes:
   db_data:
+  easyocr_cache:

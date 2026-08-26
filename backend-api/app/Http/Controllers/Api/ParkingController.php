@@ -10,7 +10,7 @@ use App\Models\Customer;
 use App\Events\SlotUpdated;
 use App\Models\Notification;
 use Illuminate\Support\Facades\DB;
-use App\Services\DijkstraService; // ➕ 1. Import Service Dijkstra kita
+use App\Services\DijkstraService; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -19,7 +19,7 @@ class ParkingController extends Controller
 {
     protected $dijkstraService;
 
-    // ➕ 2. Inject DijkstraService melalui Constructor
+    // 2. Inject DijkstraService melalui Constructor
     public function __construct(DijkstraService $dijkstraService)
     {
         $this->dijkstraService = $dijkstraService;
@@ -27,9 +27,11 @@ class ParkingController extends Controller
 
     public function getSlots()
     {
-        $slots = ParkingSlot::all();
+        $slots = ParkingSlot::withCount(['transactions as active_violation_count' => function ($query) {
+            $query->whereNull('exit_time')->where('is_violation', true);
+        }])->get();
         $candidates = $this->dijkstraService->getAllCandidatesWithDijkstra();
-        // 🛠️ UPDATE: priority_weight sudah dihapus, kita urutkan berdasarkan slot_code (S1, S2, dst.)
+        // UPDATE: priority_weight sudah dihapus, kita urutkan berdasarkan slot_code (S1, S2, dst.)
         //$slots = ParkingSlot::orderBy('slot_code', 'asc')->get();
         return response()->json([
             'status' => 'success',
@@ -48,11 +50,11 @@ class ParkingController extends Controller
 
         $plate = $request->plate_number;
 
-        // 2. 🧠 FALLBACK LOGIC: Deteksi Status Pengunjung
+        // 2. FALLBACK LOGIC: Deteksi Status Pengunjung
         $customer = Customer::where('registered_plate_number', $plate)->first();
         $customerId = $customer ? $customer->id : null;
 
-        // 3. 🗺️ ALOKASI CERDAS (DIJKSTRA ALGORITHM)
+        // 3. ALOKASI CERDAS (DIJKSTRA ALGORITHM)
         // Memanggil service yang akan mengkalkulasi rute terpendek dari Exit
         $slot = $this->dijkstraService->findOptimalSlot();
 
@@ -91,9 +93,16 @@ class ParkingController extends Controller
     {
         $slot = ParkingSlot::find($request->slot_id);
 
-        if ($slot && ($slot->status === 'occupied' || $slot->status === 'violation')) {
+        if ($slot && $slot->status === 'violation') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Slot ini dalam status pelanggaran. Menunggu override petugas.'
+            ], 403);
+        }
+
+        if ($slot && $slot->status === 'occupied') {
             
-            // 💰 1. Ambil konfigurasi tarif per jam yang sedang aktif
+            // 1. Ambil konfigurasi tarif per jam yang sedang aktif
             $currentConfig = RevenueConfig::orderBy('effective_from', 'desc')
                 ->orderBy('id', 'desc')
                 ->first();
@@ -112,50 +121,62 @@ class ParkingController extends Controller
                     ->latest()
                     ->first();
 
-                if ($transaction) {
-                    $entryTime = Carbon::parse($transaction->entry_time);
-                    $exitTime  = Carbon::now();
+                if (!$transaction) {
+                    return response()->json([
+                        'status'  => 'error',
+                        'message' => 'Tidak ditemukan transaksi aktif di slot ini.'
+                    ], 404);
+                }
 
-                    // ⏳ 2. Hitung total durasi
-                    $durationMinutes = (int) ceil($entryTime->diffInMinutes($exitTime));
-                    if ($durationMinutes === 0) {
-                        $durationMinutes = 1;
-                    }
-                    
-                    $durationHours = (int) ceil($durationMinutes / 60);
-                    if ($durationHours === 0) {
-                        $durationHours = 1; 
-                    }
+                if ($transaction->is_violation) {
+                    return response()->json([
+                        'status'  => 'error',
+                        'message' => 'Transaksi ini dalam status pelanggaran. Menunggu override petugas.'
+                    ], 403);
+                }
 
-                    // 🧠 3. LOGIKA PENENTUAN TARIF
-                    $totalFee = 0;
-                    $isMember = false;
+                $entryTime = Carbon::parse($transaction->entry_time);
+                $exitTime  = Carbon::now();
 
-                    if ($transaction->customer_id) {
-                        $customer = $transaction->customer;
-                        if ($customer && $customer->member && $customer->member->is_active) {
-                            $expiredAt = Carbon::parse($customer->member->expired_at);
-                            if ($expiredAt->isAfter(now())) {
-                                $isMember = true;
-                            }
+                // ⏳ 2. Hitung total durasi
+                $durationMinutes = (int) ceil($entryTime->diffInMinutes($exitTime));
+                if ($durationMinutes === 0) {
+                    $durationMinutes = 1;
+                }
+                
+                $durationHours = (int) ceil($durationMinutes / 60);
+                if ($durationHours === 0) {
+                    $durationHours = 1; 
+                }
+
+                // 3. LOGIKA PENENTUAN TARIF
+                $totalFee = 0;
+                $isMember = false;
+
+                if ($transaction->customer_id) {
+                    $customer = $transaction->customer;
+                    if ($customer && $customer->member && $customer->member->is_active) {
+                        $expiredAt = Carbon::parse($customer->member->expired_at);
+                        if ($expiredAt->isAfter(now())) {
+                            $isMember = true;
                         }
                     }
-
-                    if ($isMember) {
-                        $totalFee = 0;
-                    } else {
-                        $totalFee = $durationHours * $currentConfig->rate_per_hour;
-                    }
-
-                    // 📝 4. Update data transaksi
-                    $transaction->update([
-                        'exit_time'          => $exitTime,
-                        'duration_minutes'   => $durationMinutes,
-                        'fee'                => $totalFee,
-                        'revenue_config_id'  => $currentConfig->id,
-                        'is_member'          => $isMember
-                    ]);
                 }
+
+                if ($isMember) {
+                    $totalFee = 0;
+                } else {
+                    $totalFee = $durationHours * $currentConfig->rate_per_hour;
+                }
+
+                // 4. Update data transaksi
+                $transaction->update([
+                    'exit_time'          => $exitTime,
+                    'duration_minutes'   => $durationMinutes,
+                    'fee'                => $totalFee,
+                    'revenue_config_id'  => $currentConfig->id,
+                    'is_member'          => $isMember
+                ]);
 
                 // 5. Kembalikan status fisik slot menjadi kosong
                 $slot->update(['status' => 'available']);
@@ -164,11 +185,11 @@ class ParkingController extends Controller
 
                 return response()->json([
                     'status'       => 'success',
-                    'plate_number' => $transaction?->plate_number ?? 'Tidak diketahui',
-                    'exit_time'    => $transaction?->exit_time ? Carbon::parse($transaction->exit_time)->toTimeString() : now()->toTimeString(),
-                    'duration'     => isset($durationHours) ? "{$durationHours} Jam" : "1 Jam",
-                    'total_fee'    => $totalFee ?? 0,
-                    'is_member'    => $isMember ?? false
+                    'plate_number' => $transaction->plate_number,
+                    'exit_time'    => Carbon::parse($transaction->exit_time)->toTimeString(),
+                    'duration'     => "{$durationHours} Jam",
+                    'total_fee'    => $totalFee,
+                    'is_member'    => $isMember
                 ]);
             });
         }
@@ -202,7 +223,7 @@ class ParkingController extends Controller
             $cleanDetected = preg_replace('/[^A-Z0-9]/', '', strtoupper($request->detected_plate));
 
             if ($cleanRegistered !== $cleanDetected) {
-                // 🛠️ FIXED: Menggunakan $activeTransaction, bukan $transaction
+                // FIXED: Menggunakan $activeTransaction, bukan $transaction
                 $activeTransaction->update(['is_violation' => true]); 
                 broadcast(new SlotUpdated($slot))->toOthers();
                 
@@ -233,12 +254,12 @@ class ParkingController extends Controller
             $detectedSlot = ParkingSlot::lockForUpdate()->findOrFail($request->detected_slot_id);
             $allocatedSlot = ParkingSlot::lockForUpdate()->findOrFail($transaction->parking_slot_id);
 
-            // 🚨 SKENARIO PELANGGARAN: User klik slot yang BEDA dengan alokasi sistem
+            // SKENARIO PELANGGARAN: User klik slot yang BEDA dengan alokasi sistem
             if ($detectedSlot->id !== $allocatedSlot->id) {
                 
                 $detectedSlot->update(['status' => 'violation']);
 
-                // 🌟 BARU: catat link transaksi → slot fisik yang salah
+                // BARU: catat link transaksi → slot fisik yang salah
                 $transaction->update([
                     'detected_slot_id' => $detectedSlot->id,
                     'is_violation'     => true,
@@ -261,13 +282,13 @@ class ParkingController extends Controller
                 ]);
             }
 
-            // ✅ SKENARIO NORMAL: User klik slot yang BENAR (Sesuai alokasi)
+            // SKENARIO NORMAL: User klik slot yang BENAR (Sesuai alokasi)
             if ($detectedSlot->status !== 'occupied') {
                 $detectedSlot->update(['status' => 'occupied']);
                 broadcast(new SlotUpdated($detectedSlot));
             }
 
-            // 🌟 BARU: reset link kalau sebelumnya sempat violation lalu klik ulang slot yang benar
+            // BARU: reset link kalau sebelumnya sempat violation lalu klik ulang slot yang benar
             $transaction->update([
                 'detected_slot_id' => $detectedSlot->id,
                 'is_violation'     => false,
@@ -296,6 +317,13 @@ class ParkingController extends Controller
         ]);
 
         $slot = ParkingSlot::findOrFail($request->slot_id);
+
+        if ($slot->status === 'violation') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Slot ini dalam status pelanggaran. Silakan tunggu override dari petugas.'
+            ], 403);
+        }
 
         $transaction = ParkingTransaction::where('parking_slot_id', $slot->id)
             ->whereNull('exit_time')

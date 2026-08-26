@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Validator;
 class RevenueConfigController extends Controller
 {
     /**
-     * 📋 Mengambil Semua Riwayat Tarif (Termasuk Data Admin)
+     * Mengambil Semua Riwayat Tarif (Termasuk Data Admin)
      * GET /api/admin/revenue-config
      */
     public function index()

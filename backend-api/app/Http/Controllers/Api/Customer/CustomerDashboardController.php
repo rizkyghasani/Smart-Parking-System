@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Auth;
 use Exception;
 use Carbon\Carbon;
 
-// 🌟 Import Model dan Service yang dibutuhkan
 use App\Services\DijkstraService;
 use App\Models\ParkingTransaction;
 use App\Models\ParkingSlot;
@@ -18,13 +17,13 @@ class CustomerDashboardController extends Controller
 {
     protected $dijkstraService;
 
-    // 🌟 1. Inject DijkstraService melalui constructor
+    // 1. Inject DijkstraService melalui constructor
     public function __construct(DijkstraService $dijkstraService)
     {
         $this->dijkstraService = $dijkstraService;
     }
 
-    // 🌟 2. Endpoint Dashboard (Diperbarui untuk mengecek Transaksi Aktif)
+    // 2. Endpoint Dashboard (Diperbarui untuk mengecek Transaksi Aktif)
     public function index(Request $request)
     {
         try {
@@ -38,14 +37,13 @@ class CustomerDashboardController extends Controller
             $user->load(['customer.member']);
             $customer = $user->customer;
 
-            // 2. 🌟 PERBAIKAN: Paksa limit menjadi tipe data Integer
+            // 2. PERBAIKAN: Paksa limit menjadi tipe data Integer
             $limit = (int) $request->query('limit', 10);
 
             $transactions = [];
             $activeTransaction = null;
 
             if ($customer) {
-                // 3. 🌟 PERBAIKAN: Gunakan 'slot' sesuai bawaan modelmu
                 $activeTransaction = ParkingTransaction::with('slot') 
                     ->where('customer_id', $customer->id)
                     ->whereNull('exit_time')
@@ -74,7 +72,7 @@ class CustomerDashboardController extends Controller
                 ]
             ]);
         } catch (Exception $e) {
-            // 🌟 Ini akan melempar pesan error aslinya ke console/network tab React jika masih gagal
+            // Ini akan melempar pesan error aslinya ke console/network tab React jika masih gagal
             return response()->json([
                 'error' => $e->getMessage(),
                 'line' => $e->getLine()
@@ -82,7 +80,7 @@ class CustomerDashboardController extends Controller
         }
     }
 
-    // 🌟 3. Fungsi Mobile Tap-In (Cari Slot via Dijkstra)
+    // 3. Fungsi Mobile Tap-In (Cari Slot via Dijkstra)
     public function mobileTapIn(Request $request)
     {
         try {
@@ -147,7 +145,7 @@ class CustomerDashboardController extends Controller
         }
     }
 
-    // 🌟 4. Fungsi Mobile Tap-Out (Selesai Parkir)
+    // 4. Fungsi Mobile Tap-Out (Selesai Parkir)
     public function mobileTapOut(Request $request)
     {
         try {

@@ -86,7 +86,7 @@ class AuthController extends Controller
             ], 403);
         }
 
-        // 🔑 LOGIKA REMEMBER ME UTUK MENYELARASKAN KOLOM DI POSTGRESQL
+        // LOGIKA REMEMBER ME UTUK MENYELARASKAN KOLOM DI POSTGRESQL
         if ($request->remember == '1') {
             // Generate remember token baru dan simpan ke DB bawaan Laravel
             $user->setRememberToken(\Illuminate\Support\Str::random(60));

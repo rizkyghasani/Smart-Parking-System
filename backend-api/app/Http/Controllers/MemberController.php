@@ -8,7 +8,7 @@ use App\Models\Member;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Events\MemberStatusUpdated;
-use Carbon\Carbon; // 🌟 Wajib ditambahkan untuk manipulasi dan komparasi tanggal
+use Carbon\Carbon; 
 
 class MemberController extends Controller
 {
@@ -33,7 +33,7 @@ class MemberController extends Controller
             ->latest()
             ->paginate($perPage);
 
-        // 🌟 LAZY UPDATE: Periksa dan matikan status member yang sudah kadaluarsa
+        // LAZY UPDATE: Periksa dan matikan status member yang sudah kadaluarsa
         $customers->getCollection()->transform(function ($customer) {
             if ($customer->member && $customer->member->is_active) {
                 // Ambil batas akhir hari tersebut (23:59:59)
@@ -65,7 +65,7 @@ class MemberController extends Controller
             $query->latest()->limit(5); 
         }])->findOrFail($id);
 
-        // 🌟 LAZY UPDATE: Lakukan pengecekan yang sama saat membuka detail spesifik
+        // LAZY UPDATE: Lakukan pengecekan yang sama saat membuka detail spesifik
         if ($customer->member && $customer->member->is_active) {
             $expiredDate = Carbon::parse($customer->member->expired_at)->endOfDay();
             

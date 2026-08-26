@@ -114,7 +114,7 @@ class StaffController extends Controller
 
             $transaction->update(['plate_number' => strtoupper($request->verified_plate)]);
 
-            // 🌟 TANDAI SEMUA NOTIFIKASI TERKAIT TRANSAKSI INI MENJADI SELESAI
+            // TANDAI SEMUA NOTIFIKASI TERKAIT TRANSAKSI INI MENJADI SELESAI
             Notification::where('transaction_id', $transaction->id)
                 ->whereNull('resolved_by')
                 ->update([
@@ -162,7 +162,11 @@ class StaffController extends Controller
                 'reason'         => $validated['reason'],
             ]);
 
-            $transaction->update(['parking_slot_id' => $newSlot->id]);
+            $transaction->update([
+                'parking_slot_id' => $newSlot->id,
+                'is_violation'    => false,
+                'detected_slot_id' => null,
+            ]);
 
             $oldSlot->update(['status' => 'available']);
             $newSlot->update(['status' => 'occupied']);
@@ -179,7 +183,7 @@ class StaffController extends Controller
                 'resolved_at' => now(),
             ]);
 
-            // 🌟 TANDAI SEMUA NOTIFIKASI TERKAIT TRANSAKSI INI MENJADI SELESAI
+            // TANDAI SEMUA NOTIFIKASI TERKAIT TRANSAKSI INI MENJADI SELESAI
             Notification::where('transaction_id', $transaction->id)
                 ->whereNull('resolved_by')
                 ->update([
@@ -214,7 +218,7 @@ class StaffController extends Controller
         
         $updateData = ['read_at' => now()];
 
-        // 🌟 PERBAIKAN: Izinkan Auto-Resolve HANYA jika notifikasi ini berupa 'info'
+        // PERBAIKAN: Izinkan Auto-Resolve HANYA jika notifikasi ini berupa 'info'
         // Jika tipenya 'violation' atau 'manual_tapout', tombol ini TIDAK AKAN me-resolve-nya.
         if ($notification->type === 'info') {
             $updateData['resolved_by'] = Auth::id();

@@ -67,10 +67,10 @@ const ChartSkeleton = () => (
 
 const NAV_ITEMS = [
     { key: 'dashboard',      label: 'Dashboard Utama',            icon: LayoutDashboard },
-    { key: 'revenue',        label: 'Kelola Tarif Parkir',        icon: Wallet },
     { key: 'layout_overview',label: 'Pemantauan Denah',           icon: Map },
     { key: 'supervision',    label: 'Pusat Notifikasi',           icon: Bell },
     { key: 'history',        label: 'Riwayat Transaksi',          icon: History },
+    { key: 'revenue',        label: 'Kelola Tarif Parkir',        icon: Wallet },
     { key: 'staff',          label: 'Manajemen Petugas',          icon: UserCog },
     { key: 'slots',          label: 'Manajemen Status Slot',      icon: ParkingSquare },
     { key: 'members',        label: 'Manajemen Member',           icon: IdCard },
@@ -89,7 +89,7 @@ const AdminLayout = ({ onLogoutSuccess }) => {
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
-    const [timeFilter, setTimeFilter] = useState('7_days');
+    const [timeFilter, setTimeFilter] = useState('today');
     const [chartData, setChartData] = useState([]);
 
     const [stats, setStats] = useState({

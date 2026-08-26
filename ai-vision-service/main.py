@@ -8,6 +8,7 @@ from ultralytics import YOLO
 from queue import Queue
 import time
 import re
+import os
 import requests
 import logging
 
@@ -28,7 +29,8 @@ ocr_results = {
     "last_time": 0
 }
 
-LARAVEL_API_URL = "http://127.0.0.1:8000/api/parking/validate"
+# Bisa dioverride lewat env var (misal di docker-compose: http://backend:8000/api/parking/validate)
+LARAVEL_API_URL = os.getenv("LARAVEL_API_URL", "http://127.0.0.1:8000/api/parking/validate")
 
 # 4. FILTER PLAT INDONESIA
 def filter_plat_indonesia(text):

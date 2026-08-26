@@ -13,12 +13,12 @@ use Illuminate\Support\Facades\DB;
 class AdminSlotManagementController extends Controller
 {
     /**
-     * 📥 Ambil Semua Slot
+     * Ambil Semua Slot
      * GET /api/admin/slots
      */
     public function index()
     {
-        // Diperbarui: Diurutkan berdasarkan slot_code karena priority_weight sudah dihapus
+        // Diurutkan berdasarkan slot_code karena priority_weight sudah dihapus
         $slots = ParkingSlot::orderBy('slot_code', 'asc')->get();
 
         return response()->json([
@@ -28,7 +28,7 @@ class AdminSlotManagementController extends Controller
     }
 
     /**
-     * ➕ Tambah Slot Baru (Otomatis buat Node & Edge)
+     * Tambah Slot Baru (Otomatis buat Node & Edge)
      * POST /api/admin/slots
      */
     public function store(Request $request)
@@ -111,7 +111,7 @@ class AdminSlotManagementController extends Controller
     }
 
     /**
-     * ✏️ Update Slot & Koordinat
+     * Update Slot & Koordinat
      * PUT /api/admin/slots/{id}
      */
     public function update(Request $request, $id)
@@ -164,16 +164,16 @@ class AdminSlotManagementController extends Controller
     }
 
     /**
-     * 🗑️ Hapus Slot (Node & Edge ikut terhapus via Cascade)
+     * Hapus Slot (Node & Edge ikut terhapus via Cascade)
      * DELETE /api/admin/slots/{id}
      */
     public function destroy($id)
     {
         try {
-            // 🌟 Pastikan meload relasi node/graf (Sesuaikan kata 'node' dengan nama fungsi relasi di model ParkingSlot-mu)
+            //Pastikan meload relasi node/graf (Sesuaikan kata 'node' dengan nama fungsi relasi di model ParkingSlot-mu)
             $slot = \App\Models\ParkingSlot::with('node')->findOrFail($id);
 
-            // 🛡️ Keamanan: Cegah hapus jika slot sedang ada mobilnya
+            //Keamanan: Cegah hapus jika slot sedang ada mobilnya
             if ($slot->status === 'occupied') {
                 return response()->json([
                     'success' => false,
@@ -181,13 +181,13 @@ class AdminSlotManagementController extends Controller
                 ], 400);
             }
 
-            // 🌟 1. HAPUS NODE TERLEBIH DAHULU
+            // 1. HAPUS NODE TERLEBIH DAHULU
             // Ini akan menghapus titik graf secara fisik agar tidak nyangkut di Algoritma Dijkstra
             if ($slot->node) {
                 $slot->node->delete(); 
             }
 
-            // 🌟 2. SOFT DELETE SLOT
+            // 2. SOFT DELETE SLOT
             // Menyembunyikan slot dari aplikasi tanpa merusak riwayat transaksi lama
             $slot->delete();
 
@@ -242,7 +242,7 @@ class AdminSlotManagementController extends Controller
     }
 
     /**
-     * 🚪 Tambah Pintu Exit Baru & Auto-Connect ke Graf
+     * Tambah Pintu Exit Baru & Auto-Connect ke Graf
      * POST /api/admin/exits
      */
     public function storeExit(Request $request)

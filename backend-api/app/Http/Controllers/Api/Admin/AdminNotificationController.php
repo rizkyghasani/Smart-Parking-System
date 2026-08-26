@@ -8,12 +8,10 @@ use Illuminate\Http\Request;
 
 class AdminNotificationController extends Controller
 {
-    /**
-     * 1. Mengambil semua notifikasi untuk Admin (termasuk nama staf penyelesai)
-     */
+    //1. Mengambil semua notifikasi untuk Admin (termasuk nama staf penyelesai)
     public function index()
     {
-        // Menggunakan join agar kamu tidak perlu repot mengubah file Model Notification.php
+        // Menggunakan join agar tidak perlu repot mengubah file Model Notification.php
         $notifications = Notification::select('notifications.*', 'users.name as resolver_name')
             ->leftJoin('users', 'notifications.resolved_by', '=', 'users.id')
             ->latest('notifications.created_at')
@@ -26,9 +24,7 @@ class AdminNotificationController extends Controller
         ]);
     }
 
-    /**
-     * 2. Fungsi untuk me-retrigger (Eskalasi) notifikasi kembali ke Staff
-     */
+    //2. Fungsi untuk me-retrigger (Eskalasi) notifikasi kembali ke Staff
     public function retrigger($id)
     {
         $oldNotif = Notification::findOrFail($id);
@@ -52,9 +48,7 @@ class AdminNotificationController extends Controller
         ]);
     }
 
-    /**
-     * 3. Menghapus notifikasi yang sudah selesai
-     */
+    //3. Menghapus notifikasi yang sudah selesai
     public function destroy($id)
     {
         $notification = Notification::findOrFail($id);

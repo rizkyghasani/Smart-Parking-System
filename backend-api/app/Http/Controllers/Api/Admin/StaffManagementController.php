@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Validator;
 class StaffManagementController extends Controller
 {
     /**
-     * 📥 1. Ambil Semua Akun Ber-role Staff
+     * 1. Ambil Semua Akun Ber-role Staff
      * GET /api/admin/staff
      */
     public function index()
@@ -27,7 +27,7 @@ class StaffManagementController extends Controller
     }
 
     /**
-     * 📤 2. Daftarkan Akun Staff Baru oleh Admin
+     * 2. Daftarkan Akun Staff Baru oleh Admin
      * POST /api/admin/staff
      */
     public function store(Request $request)
@@ -62,7 +62,7 @@ class StaffManagementController extends Controller
     }
 
     /**
-     * ⚡ 3. Sakelar Aktif/Nonaktifkan Akun Staff (Sesuai Blueprint Skripsi)
+     * 3. Sakelar Aktif/Nonaktifkan Akun Staff (Sesuai Blueprint Skripsi)
      * PATCH /api/admin/staff/{id}/toggle-status
      */
     public function toggleStatus(Request $request, $id)

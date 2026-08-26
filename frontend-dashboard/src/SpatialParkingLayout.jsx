@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Car, LogOut, ArrowUp, ArrowDown, Activity, RefreshCcw, Calculator, X, LifeBuoy } from 'lucide-react';
+import { Car, LogOut, ArrowUp, ArrowDown, Activity, RefreshCcw, Calculator, X, LifeBuoy, Lock, AlertTriangle } from 'lucide-react';
 
 // 🌟 PERBAIKAN: Tambahkan onRequestManualTapOut pada parameter props
 const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelectedSlot, handleTapOut, onRefreshCandidates, isCustomerView = false, onSlotClick, onRequestManualTapOut, readOnly = false, showDijkstraPanel = false }) => {
@@ -287,7 +287,43 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
 
             {!isCustomerView && !readOnly && (
             <div className="p-6 bg-slate-800 border-t border-slate-700 mt-auto">
-                {selectedSlot && (selectedSlot.status === 'occupied' || selectedSlot.status === 'violation') ? (
+                {selectedSlot && selectedSlot.status === 'violation' ? (
+                    <div className="bg-slate-900 p-4 rounded-2xl border border-rose-500/30 space-y-3">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-rose-500/10 rounded-xl">
+                                <Lock size={20} className="text-rose-400" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Slot Terpilih</p>
+                                <p className="text-2xl font-black text-white">{selectedSlot.slot_code}</p>
+                            </div>
+                        </div>
+                        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3">
+                            <p className="text-xs text-rose-400 font-bold flex items-center gap-2">
+                                <AlertTriangle size={14} /> Slot Terkunci — Menunggu Override Petugas
+                            </p>
+                            <p className="text-[11px] text-slate-500 mt-1">Slot ini dalam status pelanggaran. Tidak dapat dilakukan tap-out sampai petugas melakukan override.</p>
+                        </div>
+                    </div>
+                ) : selectedSlot && selectedSlot.status === 'occupied' && selectedSlot.active_violation_count > 0 ? (
+                    <div className="bg-slate-900 p-4 rounded-2xl border border-amber-500/30 space-y-3">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-500/10 rounded-xl">
+                                <Lock size={20} className="text-amber-400" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Slot Terpilih</p>
+                                <p className="text-2xl font-black text-white">{selectedSlot.slot_code}</p>
+                            </div>
+                        </div>
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+                            <p className="text-xs text-amber-400 font-bold flex items-center gap-2">
+                                <AlertTriangle size={14} /> Transaksi Terkunci — Menunggu Override Petugas
+                            </p>
+                            <p className="text-[11px] text-slate-500 mt-1">Kendaraan di slot ini dalam status pelanggaran. Tidak dapat dilakukan tap-out sampai petugas melakukan override.</p>
+                        </div>
+                    </div>
+                ) : selectedSlot && selectedSlot.status === 'occupied' ? (
                     <div className="bg-slate-900 p-4 rounded-2xl border border-slate-700 space-y-3">
                         <div className="flex items-center justify-between">
                             <div>
@@ -299,8 +335,6 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                             </button>
                         </div>
 
-                        {/* 🌟 BARU: Tombol kecil sekunder — permintaan bantuan petugas untuk tap-out manual
-                            (kasus plat tidak terbaca / masuk pakai e-money tanpa plat) */}
                         {onRequestManualTapOut && (
                             <button
                                 onClick={handleRequestHelp}

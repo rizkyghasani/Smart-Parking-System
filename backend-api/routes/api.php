@@ -69,7 +69,7 @@ Route::prefix('admin/auth')->group(function () {
  * 💼 Grup 2: Khusus Manajemen & Operasional Sistem Admin
  * URL: /api/admin/...
  */
-Route::prefix('admin')->middleware('auth:sanctum')->group(function () {
+Route::prefix('admin')->middleware('auth:sanctum', 'role:admin')->group(function () {
 
 // 🔔 Rute Baru: Supervisi Notifikasi oleh Admin
     Route::get('/notifications', [AdminNotificationController::class, 'index']);
@@ -105,7 +105,7 @@ Route::prefix('admin')->middleware('auth:sanctum')->group(function () {
 
 });
 
-Route::prefix('staff')->middleware('auth:sanctum')->group(function () {
+Route::prefix('staff')->middleware('auth:sanctum', 'role:staff')->group(function () {
     Route::get('/dashboard', [StaffController::class, 'dashboard']);
     Route::get('/active-transactions', [StaffController::class, 'activeTransactions']);
 
@@ -132,7 +132,7 @@ Route::prefix('customer')->group(function () {
     Route::post('/login', [AuthCustomerController::class, 'login']);
     
     // Rute yang butuh login
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('auth:sanctum', 'role:customer')->group(function () {
         Route::post('/logout', [AuthCustomerController::class, 'logout']);
         Route::get('/dashboard', [CustomerDashboardController::class, 'index']); // ← Rute dashboard yang kita bahas tadi
         Route::post('/tap-in', [CustomerDashboardController::class, 'mobileTapIn']);

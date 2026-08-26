@@ -17,7 +17,7 @@ class DashboardController extends Controller
      */
     public function getStats(Request $request)
     {
-        $filter = $request->query('filter', '7_days');
+        $filter = $request->query('filter', 'today');
 
         // Tentukan batas waktu (diperbaiki: 'today' sekarang jadi bagian
         // dari satu if/elseif chain yang sama, bukan if terpisah)
