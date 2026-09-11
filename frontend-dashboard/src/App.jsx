@@ -13,7 +13,7 @@ import { echo } from './services/echo.js';
 import CameraStream from './components/CameraStream';
 import {
   Car, Monitor, Activity, LogOut, Scan, RefreshCcw, AlertCircle, X, CheckCircle, Receipt,
-  Camera, CameraOff, HardHat, UserRound, ShieldCheck,
+  Camera, CameraOff, HardHat, UserRound, ShieldCheck, TriangleAlert,
 } from 'lucide-react';
 
 const AI_URL   = 'http://localhost:8001';
@@ -177,6 +177,9 @@ function App() {
   const [aiStatus,       setAiStatus]       = useState('idle');
   const [lastDebug,      setLastDebug]      = useState(null);
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
+
+  // 🆕 "Masuk Tanpa Plat" — muncul saat kamera gagal baca plat ≥5 detik
+  const [showNoPlateBtn, setShowNoPlateBtn] = useState(false);
  
   const streamRef = React.useRef(null);
   const videoRef = React.useRef(null);
@@ -305,12 +308,29 @@ function App() {
     const id = setInterval(captureAndDetect, INTERVAL);
     return () => clearInterval(id);
   }, [captureAndDetect, isCameraEnabled]);
+
+  // Timer "Masuk Tanpa Plat": muncul saat kendaraan terdeteksi tapi plat tak terbaca ≥5 detik
+  
+  useEffect(() => {
+    if (!isCameraEnabled) {
+      setShowNoPlateBtn(false);
+      return;
+    }
+    if (aiStatus !== 'scanning') {
+      setShowNoPlateBtn(false);
+      return;
+    }
+    const id = setTimeout(() => setShowNoPlateBtn(true), 5000);
+    return () => clearTimeout(id);
+  }, [aiStatus, isCameraEnabled]);
  
-  const handleTapIn = async () => {
-    const plate = detectedPlate || `B ${Math.floor(Math.random() * 9000) + 1000}`;
+  const handleTapIn = async (noPlate = false) => {
+    if (typeof noPlate !== 'boolean') noPlate = false;
+    const plate = noPlate ? null : (detectedPlate || `B ${Math.floor(Math.random() * 9000) + 1000}`);
     setLoading(true);
+    setShowNoPlateBtn(false);
     try {
-      const res  = await axios.post(`${API_URL}/parking/tap-in`, { plate_number: plate });
+      const res  = await axios.post(`${API_URL}/parking/tap-in`, { plate_number: plate, no_plate: noPlate });
       const data = res.data.data; 
 
       const slot = slots.find(s => s.id === data.parking_slot_id) || slots.find(s => s.slot_code === data.allocated_slot);
@@ -319,7 +339,7 @@ function App() {
 
       setModal({
         type:     'tapin',
-        plate:    plate,
+        plate:    plate ?? `${slot?.slot_code ?? data.allocated_slot ?? 'N/A'}-UNKNOWN`,
         slotCode: slot?.slot_code ?? data.allocated_slot ?? 'N/A',
         time:     new Date(data.transaction.entry_time).toLocaleTimeString('id-ID'),
       });
@@ -335,6 +355,11 @@ function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 🆕 "Masuk Tanpa Plat" — panggil tap-in tanpa plat (petugas gerbang yang memutuskan)
+  const handleNoPlateTapIn = async () => {
+    await handleTapIn(true);
   };
  
   const handleTapOut = async (slotId) => {
@@ -519,7 +544,7 @@ function App() {
             </button>
  
             <button
-              onClick={handleTapIn}
+              onClick={() => handleTapIn()}
               disabled={loading}
               className="bg-blue-600 px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-widest
                          hover:bg-blue-500 active:scale-95 transition-all shadow-xl shadow-blue-600/20
@@ -527,6 +552,29 @@ function App() {
             >
               {loading ? 'PROCESSING…' : 'TAP MASUK'}
             </button>
+
+            {/* 🆕 Masuk Tanpa Plat — fallback manual & trigger timer 5 detik */}
+            {showNoPlateBtn && (
+              <button
+                onClick={handleNoPlateTapIn}
+                disabled={loading}
+                className="bg-amber-500 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest
+                           flex items-center gap-2 hover:bg-amber-400 transition-all shadow-xl shadow-amber-500/20
+                           disabled:opacity-50 animate-pulse"
+              >
+                <TriangleAlert size={15} /> Plat Tak Terdeteksi
+              </button>
+            )}
+
+            {/* <button
+              onClick={handleNoPlateTapIn}
+              disabled={loading}
+              className="px-5 py-4 rounded-2xl font-black text-xs uppercase tracking-widest border
+                         border-amber-500/40 text-amber-400 hover:bg-amber-500/10 transition-all
+                         flex items-center gap-2 disabled:opacity-50"
+            >
+              <TriangleAlert size={14} /> Masuk Tanpa Plat
+            </button> */}
           </div>
         </header>
  

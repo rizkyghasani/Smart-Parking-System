@@ -126,6 +126,7 @@ class StaffController extends Controller
             DB::commit();
 
             $request->merge(['slot_id' => $transaction->parking_slot_id]);
+            $request->merge(['_staff_verified' => true]);
             $parkingController = app(ParkingController::class);
             return $parkingController->tapOut($request);
 

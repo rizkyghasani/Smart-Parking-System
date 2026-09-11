@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Car, LogOut, ArrowUp, ArrowDown, Activity, RefreshCcw, Calculator, X, LifeBuoy, Lock, AlertTriangle } from 'lucide-react';
+import { Car, LogOut, ArrowUp, ArrowDown, Activity, RefreshCcw, Calculator, X, LifeBuoy, Lock, AlertTriangle, ShieldAlert } from 'lucide-react';
 
 // 🌟 PERBAIKAN: Tambahkan onRequestManualTapOut pada parameter props
 const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelectedSlot, handleTapOut, onRefreshCandidates, isCustomerView = false, onSlotClick, onRequestManualTapOut, readOnly = false, showDijkstraPanel = false }) => {
@@ -207,12 +207,17 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                                 onClick={() => handleSlotClick(slot)}
                                 style={{ ...getPosition(slot.x_coord, slot.y_coord), width: `${SLOT_WIDTH_M * SCALE}px`, height: `${SLOT_HEIGHT_M * SCALE}px` }}
                                 className={`
-                                    flex flex-col items-center justify-center border-2 rounded-md transition-all z-30 
+                                    flex flex-col items-center justify-center border-2 rounded-md transition-all z-30 relative
                                     ${statusStyles} 
                                     ${isSelected ? 'ring-4 ring-emerald-400/50 border-emerald-400 shadow-xl shadow-emerald-900/50 scale-110' : ''} 
                                     ${isClickableSimulation ? 'cursor-pointer hover:ring-4 hover:ring-white transform hover:scale-105 shadow-lg' : 'cursor-pointer'}
                                 `}
                             >
+                                {(slot.status === 'occupied' && slot.active_manual_count > 0) && (
+                                    <span className="absolute -top-1.5 -right-1.5 p-1 bg-amber-500 rounded-full shadow z-40" title="Wajib verifikasi manual">
+                                        <ShieldAlert size={11} className="text-white" />
+                                    </span>
+                                )}
                                 <span className={`text-[11px] font-black ${(slot.status === 'occupied' || slot.status === 'violation') ? 'mb-0.5' : ''}`}>{slot.slot_code.replace('S', '')}</span>
                                 {(slot.status === 'occupied' || slot.status === 'violation') && <Car size={18} strokeWidth={2.5} />}
                             </div>
@@ -321,6 +326,31 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                                 <AlertTriangle size={14} /> Transaksi Terkunci — Menunggu Override Petugas
                             </p>
                             <p className="text-[11px] text-slate-500 mt-1">Kendaraan di slot ini dalam status pelanggaran. Tidak dapat dilakukan tap-out sampai petugas melakukan override.</p>
+                        </div>
+                    </div>
+                ) : selectedSlot && selectedSlot.status === 'occupied' && selectedSlot.active_manual_count > 0 ? (
+                    <div className="bg-slate-900 p-4 rounded-2xl border border-amber-500/30 space-y-3">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-amber-500/10 rounded-xl">
+                                <AlertTriangle size={20} className="text-amber-400" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Slot Terpilih</p>
+                                <p className="text-2xl font-black text-white">{selectedSlot.slot_code}</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleRequestHelp}
+                            disabled={isRequestingHelp}
+                            className="w-full bg-amber-600 hover:bg-amber-500 px-6 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-600/20 disabled:opacity-50"
+                        >
+                            <LogOut size={16} /> {isRequestingHelp ? 'MENGIRIM...' : 'WAJIB TAP-OUT MANUAL'}
+                        </button>
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+                            <p className="text-xs text-amber-400 font-bold flex items-center gap-2">
+                                <AlertTriangle size={14} /> Plat Tidak Terdeteksi Saat Masuk
+                            </p>
+                            <p className="text-[11px] text-slate-500 mt-1">Kendaraan ini masuk tanpa plat terbaca. Tap-out hanya dapat diproses petugas melalui verifikasi manual.</p>
                         </div>
                     </div>
                 ) : selectedSlot && selectedSlot.status === 'occupied' ? (

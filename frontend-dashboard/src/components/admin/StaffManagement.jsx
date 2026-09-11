@@ -11,12 +11,10 @@ const StaffManagement = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
-    // ── State baru untuk double verifikasi ──────────────────────
-    const [confirmModal, setConfirmModal] = useState(null); // { staffId, staffName, targetStatus }
+    const [confirmModal, setConfirmModal] = useState(null);
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmError, setConfirmError] = useState('');
-    // ────────────────────────────────────────────────────────────
 
     const token = localStorage.getItem('admin_token');
     const headers = { Authorization: `Bearer ${token}` };
@@ -61,12 +59,11 @@ const StaffManagement = () => {
         }
     };
 
-    // ── Buka modal konfirmasi (menggantikan handleToggleStatus lama) ──
     const openConfirmModal = (staff) => {
         setConfirmModal({
             staffId:      staff.id,
             staffName:    staff.name,
-            targetStatus: !staff.is_active, // true = akan diaktifkan, false = akan dinonaktifkan
+            targetStatus: !staff.is_active,
         });
         setConfirmPassword('');
         setConfirmError('');
@@ -78,7 +75,6 @@ const StaffManagement = () => {
         setConfirmError('');
     };
 
-    // ── Submit konfirmasi password → baru jalankan toggle ────────
     const handleConfirmToggle = async (e) => {
         e.preventDefault();
         if (!confirmPassword.trim()) {
@@ -104,12 +100,11 @@ const StaffManagement = () => {
                 closeConfirmModal();
                 setMessage({
                     type: 'success',
-                    text: `✅ Status akun ${confirmModal.staffName} berhasil diubah.`,
+                    text: `Status akun ${confirmModal.staffName} berhasil diubah.`,
                 });
                 setTimeout(() => setMessage({ type: '', text: '' }), 4000);
             }
         } catch (err) {
-            // Kalau backend return 403 berarti password salah
             setConfirmError(
                 err.response?.status === 403
                     ? 'Password salah. Silakan coba lagi.'
@@ -137,7 +132,6 @@ const StaffManagement = () => {
                         className="w-full max-w-sm mx-4 bg-white rounded-3xl shadow-2xl p-6 space-y-5"
                         onClick={e => e.stopPropagation()}
                     >
-                        {/* Header */}
                         <div className="space-y-1">
                             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
                                 Verifikasi Admin
@@ -152,7 +146,6 @@ const StaffManagement = () => {
                             </p>
                         </div>
 
-                        {/* Form */}
                         <form onSubmit={handleConfirmToggle} className="space-y-4">
                             <div>
                                 <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1">
@@ -181,7 +174,6 @@ const StaffManagement = () => {
                                 )}
                             </div>
 
-                            {/* Tombol aksi */}
                             <div className="flex gap-3 pt-1">
                                 <button
                                     type="button"
@@ -210,7 +202,7 @@ const StaffManagement = () => {
                 </div>
             )}
 
-            {/* ── KONTEN UTAMA (tidak berubah) ── */}
+            {/* ── KONTEN UTAMA ── */}
             <div>
                 <h3 className="text-xl font-black text-slate-800 tracking-tight">Manajemen Akun Petugas</h3>
                 <p className="text-sm text-gray-500 mt-0.5">Kelola hak akses masuk sirkulasi monitor untuk staf dan petugas lapangan.</p>
@@ -227,7 +219,7 @@ const StaffManagement = () => {
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* FORM REGISTRASI — tidak berubah */}
+                {/* FORM REGISTRASI */}
                 <form onSubmit={handleCreateStaff} className="bg-slate-50 border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4 h-fit">
                     <div className="flex items-center space-x-2 border-b border-gray-200 pb-2 mb-2">
                         <span>➕</span>
@@ -251,39 +243,49 @@ const StaffManagement = () => {
                 </form>
 
                 {/* TABEL DATA STAFF */}
-                <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-                    <div className="p-4 border-b border-gray-100 bg-slate-50/50">
+                <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                    <div className="p-4 border-b border-gray-100 bg-slate-50/50 flex items-center justify-between">
                         <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Daftar Petugas Aktif</h4>
+                        <span className="text-[11px] text-gray-400 font-medium">{staffs.length} petugas</span>
                     </div>
-                    <div className="overflow-x-auto">
+
+                    {/* 🌟 BARU: wrapper scrollable — max-height + overflow-y-auto, header sticky */}
+                    <div className="overflow-x-auto overflow-y-auto max-h-[480px] custom-scrollbar">
                         <table className="w-full text-left border-collapse">
-                            <thead>
+                            <thead className="sticky top-0 z-10">
                                 <tr className="bg-slate-100/70 border-b border-gray-200 text-gray-600 text-[11px] font-bold uppercase tracking-wider">
-                                    <th className="px-6 py-3">Nama</th>
-                                    <th className="px-6 py-3">Email</th>
-                                    <th className="px-6 py-3 text-center">Status Akses</th>
+                                    <th className="px-6 py-3 bg-slate-100/95 backdrop-blur-sm">Nama</th>
+                                    <th className="px-6 py-3 bg-slate-100/95 backdrop-blur-sm">Email</th>
+                                    <th className="px-6 py-3 text-center bg-slate-100/95 backdrop-blur-sm">Status Akses</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 text-xs">
-                                {staffs.map(staff => (
-                                    <tr key={staff.id} className="hover:bg-slate-50/50 bg-white transition-colors">
-                                        <td className="px-6 py-4 font-bold text-slate-900">{staff.name}</td>
-                                        <td className="px-6 py-4 text-gray-500 font-mono">{staff.email}</td>
-                                        <td className="px-6 py-4 text-center">
-                                            {/* ← ganti handleToggleStatus ke openConfirmModal */}
-                                            <button
-                                                onClick={() => openConfirmModal(staff)}
-                                                className={`px-3 py-1.5 rounded-xl font-bold text-[10px] uppercase tracking-wide transition-all ${
-                                                    staff.is_active
-                                                        ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
-                                                        : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
-                                                }`}
-                                            >
-                                                {staff.is_active ? '● Aktif (Bisa Masuk)' : '○ Nonaktif (Dikunci)'}
-                                            </button>
+                                {staffs.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="3" className="px-6 py-12 text-center text-gray-400 text-sm">
+                                            Belum ada petugas terdaftar.
                                         </td>
                                     </tr>
-                                ))}
+                                ) : (
+                                    staffs.map(staff => (
+                                        <tr key={staff.id} className="hover:bg-slate-50/50 bg-white transition-colors">
+                                            <td className="px-6 py-4 font-bold text-slate-900">{staff.name}</td>
+                                            <td className="px-6 py-4 text-gray-500 font-mono">{staff.email}</td>
+                                            <td className="px-6 py-4 text-center">
+                                                <button
+                                                    onClick={() => openConfirmModal(staff)}
+                                                    className={`px-3 py-1.5 rounded-xl font-bold text-[10px] uppercase tracking-wide transition-all ${
+                                                        staff.is_active
+                                                            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                                                            : 'bg-rose-100 text-rose-700 hover:bg-rose-200'
+                                                    }`}
+                                                >
+                                                    {staff.is_active ? '● Aktif (Bisa Masuk)' : '○ Nonaktif (Dikunci)'}
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
                             </tbody>
                         </table>
                     </div>

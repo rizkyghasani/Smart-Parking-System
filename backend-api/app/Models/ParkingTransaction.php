@@ -21,7 +21,8 @@ class ParkingTransaction extends Model
         'duration_minutes', // ➕ Tambahkan kolom durasi menit dari alter migration
         'fee',              // ➕ Tambahkan kolom nominal biaya dari alter migration
         'revenue_config_id', // ➕ Tambahkan kolom FK acuan tarif dari alter migration
-        'detected_slot_id'
+        'detected_slot_id',
+        'requires_manual_verification'
     ];
 
     // Beritahu Laravel tipe data rill masing-masing kolom untuk mempermudah kalkulasi
@@ -32,6 +33,7 @@ class ParkingTransaction extends Model
         'duration_minutes' => 'integer', // ⚙️ Cast ke integer agar dibaca sebagai angka rill
         'fee'              => 'integer', // ⚙️ Cast ke integer agar mempermudah .toLocaleString() di React
         'revenue_config_id'=> 'integer',
+        'requires_manual_verification' => 'boolean',
     ];
 
     /**

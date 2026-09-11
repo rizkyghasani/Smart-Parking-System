@@ -41,7 +41,6 @@ public function getAllCandidatesWithDijkstra(): array
         
         $dijkstraResults = [];
         foreach ($exits as $exit) {
-            // Sekarang runDijkstra mengembalikan array ['distances', 'previous']
             $dijkstraResults[$exit->id] = $this->runDijkstra($graph, $exit->id);
         }
 
@@ -163,7 +162,7 @@ private function runDijkstra(array $graph, int $sourceNodeId): array
                         $alt = $distances[$minNode] + $weight;
                         if ($alt < $distances[$neighbor]) {
                             $distances[$neighbor] = $alt;
-                            $previous[$neighbor] = $minNode; // 🌟 Simpan jejak rute
+                            $previous[$neighbor] = $minNode; 
                         }
                     }
                 }

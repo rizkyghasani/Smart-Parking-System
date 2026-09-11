@@ -27,9 +27,14 @@ class ParkingController extends Controller
 
     public function getSlots()
     {
-        $slots = ParkingSlot::withCount(['transactions as active_violation_count' => function ($query) {
-            $query->whereNull('exit_time')->where('is_violation', true);
-        }])->get();
+        $slots = ParkingSlot::withCount([
+            'transactions as active_violation_count' => function ($query) {
+                $query->whereNull('exit_time')->where('is_violation', true);
+            },
+            'transactions as active_manual_count' => function ($query) {
+                $query->whereNull('exit_time')->where('requires_manual_verification', true);
+            }
+        ])->get();
         $candidates = $this->dijkstraService->getAllCandidatesWithDijkstra();
         // UPDATE: priority_weight sudah dihapus, kita urutkan berdasarkan slot_code (S1, S2, dst.)
         //$slots = ParkingSlot::orderBy('slot_code', 'asc')->get();
@@ -42,19 +47,16 @@ class ParkingController extends Controller
 
     public function tapIn(Request $request)
     {
-        // 1. Validasi input dari Kamera AI (Frontend)
+        // 1. Validasi input dari Kamera (Frontend)
         $request->validate([
-            'plate_number' => 'required|string',
-            'card_id'      => 'nullable|string' // Opsional jika pakai RFID
+            'plate_number' => 'nullable|string',
+            'card_id'      => 'nullable|string', 
+            'no_plate'     => 'nullable|boolean'
         ]);
 
-        $plate = $request->plate_number;
+        $isNoPlate = (bool) $request->no_plate;
 
-        // 2. FALLBACK LOGIC: Deteksi Status Pengunjung
-        $customer = Customer::where('registered_plate_number', $plate)->first();
-        $customerId = $customer ? $customer->id : null;
-
-        // 3. ALOKASI CERDAS (DIJKSTRA ALGORITHM)
+        // 2. ALOKASI DIJKSTRA ALGORITHM
         // Memanggil service yang akan mengkalkulasi rute terpendek dari Exit
         $slot = $this->dijkstraService->findOptimalSlot();
 
@@ -65,15 +67,26 @@ class ParkingController extends Controller
             ], 400);
         }
 
+        // 3. Tentukan plat & status pengunjung
+        if ($isNoPlate) {
+            $plate      = "{$slot->slot_code}-UNKNOWN";
+            $customerId = null;
+        } else {
+            $plate      = $request->plate_number ?? 'NOPLATE';
+            $customer   = Customer::where('registered_plate_number', $plate)->first();
+            $customerId = $customer ? $customer->id : null;
+        }
+
         // 4. Eksekusi Transaksi & Kunci Slot
         $slot->update(['status' => 'occupied']);
 
         $transaction = ParkingTransaction::create([
-            'card_id'         => $request->card_id ?? 'TCK-' . strtoupper(Str::random(8)),
-            'plate_number'    => $plate,
-            'parking_slot_id' => $slot->id,
-            'customer_id'     => $customerId,
-            'entry_time'      => now(),
+            'card_id'                      => $request->card_id ?? 'TCK-' . strtoupper(Str::random(8)),
+            'plate_number'                 => $plate,
+            'parking_slot_id'              => $slot->id,
+            'customer_id'                  => $customerId,
+            'requires_manual_verification' => $isNoPlate,
+            'entry_time'                   => now(),
         ]);
 
         // 5. Trigger event Laravel Reverb untuk update UI di Frontend
@@ -114,7 +127,7 @@ class ParkingController extends Controller
                 ], 400);
             }
 
-            return DB::transaction(function () use ($slot, $currentConfig) {
+            return DB::transaction(function () use ($slot, $currentConfig, $request) {
                 
                 $transaction = ParkingTransaction::where('parking_slot_id', $slot->id)
                     ->whereNull('exit_time')
@@ -132,6 +145,13 @@ class ParkingController extends Controller
                     return response()->json([
                         'status'  => 'error',
                         'message' => 'Transaksi ini dalam status pelanggaran. Menunggu override petugas.'
+                    ], 403);
+                }
+
+                if ($transaction->requires_manual_verification && !$request->get('_staff_verified')) {
+                    return response()->json([
+                        'status'  => 'error',
+                        'message' => 'Kendaraan ini wajib melalui verifikasi manual petugas (plat tidak terdeteksi saat masuk).'
                     ], 403);
                 }
 
@@ -259,7 +279,6 @@ class ParkingController extends Controller
                 
                 $detectedSlot->update(['status' => 'violation']);
 
-                // BARU: catat link transaksi → slot fisik yang salah
                 $transaction->update([
                     'detected_slot_id' => $detectedSlot->id,
                     'is_violation'     => true,
