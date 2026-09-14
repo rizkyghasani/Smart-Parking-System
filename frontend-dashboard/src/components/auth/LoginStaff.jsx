@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { HardHat } from 'lucide-react';
+import AuthLayout, { STAFF_ACCENT } from './AuthLayout';
 
 const LoginStaff = ({ onLoginSuccess, onBackToMain }) => {
     const [email, setEmail] = useState('');
@@ -55,74 +57,63 @@ const LoginStaff = ({ onLoginSuccess, onBackToMain }) => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative font-sans">
-            {/* Tombol kembali ke monitor sirkulasi utama */}
-            <button 
-                onClick={onBackToMain}
-                className="absolute top-6 left-6 text-slate-400 hover:text-white text-sm font-medium flex items-center space-x-1 transition-all"
-            >
-                <span>&larr;</span> <span>Kembali ke Halaman Utama</span>
-            </button>
-
-            <div className="bg-white border border-gray-200 p-8 rounded-2xl w-full max-w-md shadow-xl text-slate-800">
-                <div className="text-center mb-8">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center font-bold text-white text-xl mx-auto mb-3 shadow-md shadow-emerald-600/20">
-                        ⚙️
-                    </div>
-                    <h2 className="text-2xl font-black text-slate-800 tracking-tight">Portal Petugas Lapangan</h2>
-                    <p className="text-gray-500 text-sm mt-1">Silakan masuk untuk mengelola sirkulasi kendaraan</p>
+        <AuthLayout
+            icon={HardHat}
+            title="Portal Petugas Lapangan"
+            subtitle="Silakan masuk untuk mengelola sirkulasi kendaraan"
+            accent={STAFF_ACCENT}
+            onBack={onBackToMain}
+            backLabel="Kembali ke Halaman Utama"
+        >
+            {errorMessage && (
+                <div className="mb-4 p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-xs font-semibold">
+                    ⚠️ {errorMessage}
                 </div>
+            )}
 
-                {errorMessage && (
-                    <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl text-xs font-semibold">
-                        ⚠️ {errorMessage}
-                    </div>
-                )}
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Email Petugas</label>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                    <label className="block text-xs font-bold text-[#475467] uppercase tracking-wider mb-2">Email Petugas</label>
+                    <input 
+                        type="email" 
+                        required 
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className={`w-full px-4 py-3 rounded-xl text-sm transition-all font-medium ${STAFF_ACCENT.field}`} 
+                        placeholder="Enter your email here.." 
+                    />
+                </div>
+                
+                <div>
+                    <label className="block text-xs font-bold text-[#475467] uppercase tracking-wider mb-2">Password Access</label>
+                    <div className="relative">
                         <input 
-                            type="email" 
+                            type={showPassword ? 'text' : 'password'} 
                             required 
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-slate-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-600 transition-all font-medium" 
-                            placeholder="Enter your email here.." 
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className={`w-full px-4 py-3 rounded-xl pr-20 text-sm transition-all font-medium ${STAFF_ACCENT.field}`} 
+                            placeholder="••••••••" 
                         />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-[#98A2B3] hover:text-[#475467] transition-colors"
+                        >
+                            {showPassword ? 'SEMBUNYI' : 'LIHAT'}
+                        </button>
                     </div>
-                    
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Password Access</label>
-                        <div className="relative">
-                            <input 
-                                type={showPassword ? 'text' : 'password'} 
-                                required 
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-slate-50 border border-gray-200 rounded-xl pl-4 pr-12 py-3 text-sm text-slate-800 focus:outline-none focus:border-emerald-600 transition-all font-medium" 
-                                placeholder="••••••••" 
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 hover:text-gray-600 transition-colors"
-                            >
-                                {showPassword ? 'SEMBUNYI' : 'LIHAT'}
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <button 
-                        type="submit" 
-                        disabled={loading}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-800 text-white font-bold py-3 rounded-xl text-sm mt-4 shadow-md shadow-emerald-600/10 transition-all uppercase tracking-wider"
-                    >
-                        {loading ? 'Memvalidasi Sesi...' : 'Mulai Bertugas'}
-                    </button>
-                </form>
-            </div>
-        </div>
+                </div>
+                
+                <button 
+                    type="submit" 
+                    disabled={loading}
+                    className={`w-full text-white font-bold py-3 rounded-xl text-sm mt-4 transition-all uppercase tracking-wider ${STAFF_ACCENT.btn} ${STAFF_ACCENT.btnBusy}`}
+                >
+                    {loading ? 'Memvalidasi Sesi...' : 'Mulai Bertugas'}
+                </button>
+            </form>
+        </AuthLayout>
     );
 };
 

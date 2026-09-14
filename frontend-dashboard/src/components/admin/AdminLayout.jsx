@@ -12,6 +12,7 @@ import AdminParkingHistory from './AdminParkingHistory';
 import AdminManualTapOutHistory from './AdminManualTapOutHistory';
 import AdminNotificationPage from './AdminNotificationPage';
 import AdminParkingOverview from './AdminParkingOverview';
+import AdminRevenueReport from './AdminRevenueReport';
 import {
     Wallet,
     UserCog,
@@ -21,6 +22,7 @@ import {
     FileCheck2,
     Map,
     RefreshCcw,
+    FileBarChart,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────
@@ -31,13 +33,13 @@ const formatRupiah = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID')
 // ─────────────────────────────────────────────────────────
 // KOMPONEN KECIL: Kartu Statistik (dipakai berulang, jadi diekstrak)
 // ─────────────────────────────────────────────────────────
-const StatCard = ({ title, value, subtitle, accentClass = 'text-gray-600', pulse = false }) => (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
-        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">{title}</h3>
+const StatCard = ({ title, value, subtitle, accentClass = 'text-[#475467]', pulse = false }) => (
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-[#E2E6EE] transition-all hover:shadow-md">
+        <h3 className="text-sm font-semibold text-[#98A2B3] uppercase tracking-wider">{title}</h3>
         <p className={`text-3xl font-black mt-2 tracking-tight ${accentClass} ${pulse ? 'animate-pulse' : ''}`}>
             {value}
         </p>
-        <span className="text-[10px] text-gray-400 font-medium block mt-1">{subtitle}</span>
+        <span className="text-[10px] text-[#98A2B3] font-medium block mt-1">{subtitle}</span>
     </div>
 );
 
@@ -47,9 +49,9 @@ const StatCard = ({ title, value, subtitle, accentClass = 'text-gray-600', pulse
 const RevenueTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     return (
-        <div className="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl border border-slate-700">
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">{label}</p>
-            <p className="text-sm font-black text-emerald-400">{formatRupiah(payload[0].value)}</p>
+        <div className="bg-white px-4 py-3 rounded-xl shadow-xl border border-[#E2E6EE]">
+            <p className="text-[10px] text-[#98A2B3] uppercase tracking-widest font-bold mb-1">{label}</p>
+            <p className="text-sm font-black text-emerald-600">{formatRupiah(payload[0].value)}</p>
         </div>
     );
 };
@@ -60,7 +62,7 @@ const RevenueTooltip = ({ active, payload, label }) => {
 const ChartSkeleton = () => (
     <div className="h-full w-full flex items-end gap-2 px-2 animate-pulse">
         {[40, 65, 50, 80, 55, 70, 45].map((h, i) => (
-            <div key={i} className="flex-1 bg-slate-100 rounded-t-lg" style={{ height: `${h}%` }} />
+            <div key={i} className="flex-1 bg-[#EEF1F5] rounded-t-lg" style={{ height: `${h}%` }} />
         ))}
     </div>
 );
@@ -75,6 +77,7 @@ const NAV_ITEMS = [
     { key: 'slots',          label: 'Manajemen Status Slot',      icon: ParkingSquare },
     { key: 'members',        label: 'Manajemen Member',           icon: IdCard },
     { key: 'manual_history', label: 'Riwayat Verifikasi Manual',  icon: FileCheck2 },
+    { key: 'revenue_report', label: 'Laporan Pendapatan', icon: FileBarChart },
 ];
 
 const TIME_FILTER_OPTIONS = [
@@ -150,17 +153,17 @@ const AdminLayout = ({ onLogoutSuccess }) => {
         <div className="p-6 h-full flex flex-col">
             <div className="flex justify-between items-center mb-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-gray-800">
+                    <h2 className="text-2xl font-bold text-[#101828]">
                         Selamat Datang, {adminUser.name || 'Admin'}
                     </h2>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-[#667085]">
                         Silakan pilih menu di samping untuk mengelola operasional Smart Parking.
                     </p>
                 </div>
                 <button
                     onClick={fetchDashboardStats}
                     disabled={loadingStats}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-60"
+                    className="bg-[#EEF1F5] hover:bg-[#E2E6EE] text-[#475467] px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-60"
                 >
                     <RefreshCcw size={16} className={loadingStats ? 'animate-spin' : ''} />
                     {loadingStats ? 'Memuat...' : 'Refresh Data'}
@@ -179,7 +182,7 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                     title="Akun Staf Aktif"
                     value={<>{stats.active_staff_count} <span className="text-xs font-normal text-gray-400">Petugas</span></>}
                     subtitle="Siap bertugas di sirkulasi pos"
-                    accentClass="text-blue-600"
+                    accentClass="text-[#26468A]"
                 />
                 <StatCard
                     title="Log Pelanggaran"
@@ -191,16 +194,16 @@ const AdminLayout = ({ onLogoutSuccess }) => {
             </div>
 
             {/* GRAFIK PENDAPATAN */}
-            <div className="mt-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex-1 min-h-[350px]">
+            <div className="mt-8 bg-white p-6 rounded-xl shadow-sm border border-[#E2E6EE] flex-1 min-h-[350px]">
                 <div className="flex justify-between items-center mb-2 flex-wrap gap-3">
                     <div>
-                        <h3 className="text-lg font-bold text-gray-800">Tren Pendapatan Parkir</h3>
-                        <p className="text-xs text-gray-500">Visualisasi pemasukan kotor dari transaksi selesai.</p>
+                        <h3 className="text-lg font-bold text-[#101828]">Tren Pendapatan Parkir</h3>
+                        <p className="text-xs text-[#667085]">Visualisasi pemasukan kotor dari transaksi selesai.</p>
                     </div>
                     <select
                         value={timeFilter}
                         onChange={(e) => setTimeFilter(e.target.value)}
-                        className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 font-semibold cursor-pointer outline-none"
+                        className="bg-white border border-[#E2E6EE] text-[#101828] text-sm rounded-lg focus:ring-[#26468A]/10 focus:border-[#26468A] block p-2 font-semibold cursor-pointer outline-none"
                     >
                         {TIME_FILTER_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -227,19 +230,19 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                                         <stop offset="95%" stopColor="#059669" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E6EE" />
                                 <XAxis
                                     dataKey="tanggal"
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                                    tick={{ fill: '#98A2B3', fontSize: 12 }}
                                     dy={10}
                                     interval={timeFilter === 'today' ? 2 : 'preserveStartEnd'}
                                 />
                                 <YAxis
                                     axisLine={false}
                                     tickLine={false}
-                                    tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                                    tick={{ fill: '#98A2B3', fontSize: 12 }}
                                     tickFormatter={(value) => `Rp ${(value / 1000).toLocaleString('id-ID')}k`}
                                     width={60}
                                 />
@@ -261,7 +264,7 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                             </AreaChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="flex h-full items-center justify-center text-gray-400 text-sm italic bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        <div className="flex h-full items-center justify-center text-[#98A2B3] text-sm italic bg-[#F3F5F9] rounded-xl border border-dashed border-[#E2E6EE]">
                             Tidak ada data transaksi pada rentang waktu ini.
                         </div>
                     )}
@@ -280,26 +283,27 @@ const AdminLayout = ({ onLogoutSuccess }) => {
             case 'manual_history': return <AdminManualTapOutHistory />;
             case 'supervision': return <AdminNotificationPage />;
             case 'layout_overview':return <AdminParkingOverview />;
+            case 'revenue_report':return <AdminRevenueReport/>;
             case 'dashboard':
             default:        return renderDashboard();
         }
     };
 
     return (
-        <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
+        <div className="flex h-screen bg-[#F3F5F9] overflow-hidden">
             {/* ── SIDEBAR ──────────────────────────────────────────── */}
-            <aside className={`bg-slate-900 text-slate-200 flex flex-col justify-between shadow-lg transition-all duration-300 ease-in-out overflow-hidden ${sidebarOpen ? 'w-64' : 'w-0'}`}>
+            <aside className={`bg-white text-[#475467] flex flex-col justify-between shadow-sm border-r border-[#E2E6EE] transition-all duration-300 ease-in-out overflow-hidden ${sidebarOpen ? 'w-64' : 'w-0'}`}>
                 <div>
-                    <div className="p-5 border-b border-slate-800 flex items-center space-x-3 whitespace-nowrap">
-                        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white text-lg flex-shrink-0">P</div>
-                        <span className="font-bold text-lg tracking-wider text-white">PARKING ADMIN</span>
+                    <div className="p-5 border-b border-[#E2E6EE] flex items-center space-x-3 whitespace-nowrap">
+                        <div className="w-8 h-8 rounded-lg bg-[#26468A] flex items-center justify-center font-bold text-white text-lg flex-shrink-0">P</div>
+                        <span className="font-bold text-lg tracking-wider text-[#101828]">PARKING ADMIN</span>
                     </div>
                     <nav className="p-4 space-y-2">
                         {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
                             <button
                                 key={key}
                                 onClick={() => setActiveTab(key)}
-                                className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-3 ${activeTab === key ? 'bg-blue-600 text-white shadow-md' : 'hover:bg-slate-800 text-slate-400 hover:text-slate-200'}`}
+                                className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-3 ${activeTab === key ? 'bg-[#26468A]/10 text-[#26468A] shadow-sm font-semibold' : 'hover:bg-[#F3F5F9] text-[#667085] hover:text-[#101828]'}`}
                             >
                                 <Icon size={18} className="shrink-0 opacity-80" />
                                 <span>{label}</span>
@@ -307,11 +311,11 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                         ))}
                     </nav>
                 </div>
-                <div className="p-4 border-t border-slate-800">
+                <div className="p-4 border-t border-[#E2E6EE]">
                     <button
                         onClick={handleLogout}
                         disabled={isLoggingOut}
-                        className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-rose-400 hover:bg-slate-800 hover:text-rose-300 disabled:text-slate-600 transition-all flex items-center gap-3 whitespace-nowrap"
+                        className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:text-[#98A2B3] transition-all flex items-center gap-3 whitespace-nowrap"
                     >
                         <span className="text-lg opacity-80"></span>
                         <span>{isLoggingOut ? 'Mencabut Sesi...' : 'Keluar'}</span>
@@ -321,11 +325,11 @@ const AdminLayout = ({ onLogoutSuccess }) => {
 
             {/* ── MAIN CONTENT ─────────────────────────────────────── */}
             <main className="flex-1 flex flex-col overflow-y-auto min-w-0">
-                <header className="bg-white h-16 border-b border-gray-200 flex items-center justify-between px-6 shadow-sm flex-shrink-0">
+                <header className="bg-white h-16 border-b border-[#E2E6EE] flex items-center justify-between px-6 shadow-sm flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setSidebarOpen((prev) => !prev)}
-                            className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-all"
+                            className="p-2 rounded-lg hover:bg-[#EEF1F5] text-[#667085] hover:text-[#101828] transition-all"
                             title={sidebarOpen ? 'Tutup sidebar' : 'Buka sidebar'}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -334,15 +338,15 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                                     : <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />}
                             </svg>
                         </button>
-                        <span className="text-sm font-medium text-gray-500">Sistem Parkir Cerdas &bull; Panel Admin</span>
+                        <span className="text-sm font-medium text-[#667085]">Sistem Parkir Cerdas &bull; Panel Admin</span>
                     </div>
                     <div className="flex items-center space-x-3">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-sm text-gray-700 font-medium capitalize">Mode {adminUser.role || 'Administrator'}</span>
+                        <span className="text-sm text-[#101828] font-medium capitalize">Mode {adminUser.role || 'Administrator'}</span>
                     </div>
                 </header>
                 <div className="p-8 h-[calc(100vh-4rem)] overflow-y-auto">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200/80 min-h-full">
+                    <div className="bg-white rounded-2xl shadow-sm border border-[#E2E6EE] min-h-full">
                         {renderContent()}
                     </div>
                 </div>

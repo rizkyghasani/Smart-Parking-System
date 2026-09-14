@@ -4,6 +4,7 @@ import {
     Bell, AlertTriangle, CheckCircle, Info, ArrowRightLeft, 
     Clock, CheckCheck, FileText, Filter, ChevronLeft, ChevronRight 
 } from 'lucide-react';
+import { wibDate, wibTime } from '../../utils/time';
 
 const NotificationPage = ({ notifications, refreshData, onNavigateToMonitor, onOpenManualVerification }) => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
@@ -64,28 +65,25 @@ const NotificationPage = ({ notifications, refreshData, onNavigateToMonitor, onO
         }
     };
 
-    const formatTime = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) + ', ' + 
-               date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
-    };
+    const formatTime = (dateString) =>
+        `${wibDate(dateString, { day: 'numeric', month: 'short' })}, ${wibTime(dateString)} WIB`;
 
     return (
-        <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm min-h-[500px] flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E6EE] shadow-sm min-h-[500px] flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-gray-100">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-[#E2E6EE]">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                        <Bell className="text-blue-500" size={24} /> Pusat Notifikasi
+                    <h2 className="text-xl font-bold text-[#101828] flex items-center gap-2">
+                        <Bell className="text-[#26468A]" size={24} /> Pusat Notifikasi
                     </h2>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-[#667085] mt-1">
                         Pusat kendali peringatan sistem, panggilan bantuan, dan pelanggaran area.
                     </p>
                 </div>
                 {unreadCount > 0 && (
                     <button
                         onClick={handleClearAll}
-                        className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-600 px-4 py-2.5 rounded-xl text-xs font-bold transition-colors"
+                        className="flex items-center gap-2 bg-[#26468A]/10 hover:bg-[#26468A]/20 text-[#26468A] px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                     >
                         <CheckCheck size={16} /> Tandai Semua Dibaca ({unreadCount})
                     </button>
@@ -93,24 +91,24 @@ const NotificationPage = ({ notifications, refreshData, onNavigateToMonitor, onO
             </div>
 
             {/* TOOLBAR FILTER & PAGINASI */}
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mb-4 bg-[#F3F5F9] p-3 rounded-xl border border-[#E2E6EE]">
                 <button 
                     onClick={() => setFilterUnread(!filterUnread)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all border ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all border cursor-pointer ${
                         filterUnread 
-                            ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200' 
-                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                            ? 'bg-[#26468A] text-white border-[#26468A] shadow-md shadow-[#26468A]/20' 
+                            : 'bg-white text-[#667085] border-[#E2E6EE] hover:bg-[#EEF1F5]'
                     }`}
                 >
                     <Filter size={14} /> {filterUnread ? 'Menampilkan: Belum Dibaca' : 'Tampilkan Belum Dibaca Saja'}
                 </button>
 
-                <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#667085]">
                     <label>Tampilkan:</label>
                     <select 
                         value={itemsPerPage} 
                         onChange={(e) => setItemsPerPage(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                        className="bg-white border border-gray-200 text-gray-700 px-2 py-1.5 rounded-lg focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
+                        className="bg-white border border-[#E2E6EE] text-[#475467] px-2 py-1.5 rounded-lg focus:outline-none focus:border-[#26468A] cursor-pointer font-medium"
                     >
                         <option value={10}>10 Baris</option>
                         <option value={30}>30 Baris</option>
@@ -136,14 +134,14 @@ const NotificationPage = ({ notifications, refreshData, onNavigateToMonitor, onO
                                 key={notif.id}
                                 className={`relative p-5 rounded-2xl border transition-all flex flex-col md:flex-row gap-5 items-start md:items-center justify-between ${
                                     isRead
-                                        ? 'bg-gray-50/50 border-gray-200 opacity-70'
+                                        ? 'bg-[#F3F5F9]/50 border-[#E2E6EE] opacity-70'
                                         : isEscalation // 🌟 STYLING KHUSUS ESKALASI
                                             ? 'bg-rose-50 border-rose-400 shadow-md shadow-rose-200 ring-1 ring-rose-400'
                                             : isViolation
                                                 ? 'bg-rose-50 border-rose-200 shadow-sm shadow-rose-100'
                                                 : isManualRequest
                                                     ? 'bg-amber-50 border-amber-200 shadow-sm shadow-amber-100'
-                                                    : 'bg-white border-blue-200 shadow-sm'
+                                                    : 'bg-white border-[#26468A]/20 shadow-sm'
                                 }`}
                             >
                                 <div className="flex gap-4 items-start">
@@ -153,22 +151,22 @@ const NotificationPage = ({ notifications, refreshData, onNavigateToMonitor, onO
                                         ) : isViolation ? (
                                             <div className="bg-rose-100 p-2.5 rounded-xl text-rose-600"><AlertTriangle size={20} /></div>
                                         ) : isManualRequest ? (
-                                            <div className="bg-amber-100 p-2.5 rounded-xl text-amber-600"><FileText size={20} /></div>
+                                            <div className="bg-[#C97A1D]/10 p-2.5 rounded-xl text-[#C97A1D]"><FileText size={20} /></div>
                                         ) : (
-                                            <div className="bg-blue-100 p-2.5 rounded-xl text-blue-600"><Info size={20} /></div>
+                                            <div className="bg-[#26468A]/10 p-2.5 rounded-xl text-[#26468A]"><Info size={20} /></div>
                                         )}
                                     </div>
 
                                     <div>
-                                        <h4 className={`text-base font-bold tracking-tight ${isEscalation ? 'text-rose-700 uppercase font-black' : isViolation ? 'text-rose-700' : isManualRequest ? 'text-amber-700' : 'text-gray-800'}`}>
+                                        <h4 className={`text-base font-bold tracking-tight ${isEscalation ? 'text-rose-700 uppercase font-black' : isViolation ? 'text-rose-700' : isManualRequest ? 'text-[#C97A1D]' : 'text-[#101828]'}`}>
                                             {notif.title}
-                                            {!isRead && <span className={`ml-3 text-[9px] text-white px-2 py-0.5 rounded-full animate-pulse uppercase tracking-widest align-middle ${isEscalation ? 'bg-rose-600' : 'bg-blue-500'}`}>Baru</span>}
+                                            {!isRead && <span className={`ml-3 text-[9px] text-white px-2 py-0.5 rounded-full animate-pulse uppercase tracking-widest align-middle ${isEscalation ? 'bg-rose-600' : 'bg-[#26468A]'}`}>Baru</span>}
                                         </h4>
-                                        <p className="text-sm text-gray-600 mt-1">
+                                        <p className="text-sm text-[#475467] mt-1">
                                             {notif.body}
                                         </p>
                                         <div className="flex items-center gap-4 mt-2">
-                                            <span className="text-xs text-gray-400 font-bold flex items-center gap-1.5">
+                                            <span className="text-xs text-[#98A2B3] font-bold flex items-center gap-1.5">
                                                 <Clock size={12} /> {formatTime(notif.created_at)}
                                             </span>
                                         </div>
@@ -180,7 +178,7 @@ const NotificationPage = ({ notifications, refreshData, onNavigateToMonitor, onO
                                     {(isViolation || (isEscalation && notif.type === 'violation')) && !isRead && (
                                         <button
                                             onClick={() => { handleMarkAsRead(notif.id, isRead); onNavigateToMonitor(); }}
-                                            className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md shadow-rose-200"
+                                            className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md shadow-rose-200 cursor-pointer"
                                         >
                                             <ArrowRightLeft size={14} /> Pindah Slot
                                         </button>
@@ -192,7 +190,7 @@ const NotificationPage = ({ notifications, refreshData, onNavigateToMonitor, onO
                                                 handleMarkAsRead(notif.id, isRead); 
                                                 if (onOpenManualVerification && notif.transaction_id) onOpenManualVerification(notif.transaction_id); 
                                             }}
-                                            className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md shadow-amber-200"
+                                            className="bg-[#C97A1D] hover:bg-[#b06a17] text-white text-xs font-bold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md shadow-[#C97A1D]/30 cursor-pointer"
                                         >
                                             <FileText size={14} /> Proses STNK
                                         </button>
@@ -201,7 +199,7 @@ const NotificationPage = ({ notifications, refreshData, onNavigateToMonitor, onO
                                     {!isRead && (
                                         <button
                                             onClick={() => handleMarkAsRead(notif.id, isRead)}
-                                            className="bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                                            className="bg-[#EEF1F5] hover:bg-[#E2E6EE] text-[#475467] text-xs font-bold px-4 py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer"
                                         >
                                             <CheckCircle size={14} /> Tandai Selesai
                                         </button>
@@ -211,10 +209,10 @@ const NotificationPage = ({ notifications, refreshData, onNavigateToMonitor, onO
                         );
                     })
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-4 py-20">
+                    <div className="h-full flex flex-col items-center justify-center text-[#98A2B3] space-y-4 py-20">
                         <CheckCircle size={64} className="text-emerald-100" />
                         <div className="text-center">
-                            <p className="font-bold tracking-widest uppercase text-base text-gray-500">Semua Terkendali</p>
+                            <p className="font-bold tracking-widest uppercase text-base text-[#667085]">Semua Terkendali</p>
                             <p className="text-sm mt-1">
                                 {filterUnread ? 'Tidak ada notifikasi yang belum dibaca.' : 'Tidak ada notifikasi baru saat ini.'}
                             </p>
@@ -225,22 +223,22 @@ const NotificationPage = ({ notifications, refreshData, onNavigateToMonitor, onO
 
             {/* FOOTER PAGINASI */}
             {!isAll && totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                    <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#E2E6EE]">
+                    <span className="text-xs font-bold text-[#667085] uppercase tracking-widest">
                         Halaman {currentPage} dari {totalPages}
                     </span>
                     <div className="flex items-center gap-2">
                         <button 
                             onClick={handlePrevPage}
                             disabled={currentPage === 1}
-                            className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-50 transition-all cursor-pointer"
+                            className="p-2 rounded-lg border border-[#E2E6EE] text-[#667085] hover:bg-[#F3F5F9] disabled:opacity-50 transition-all cursor-pointer"
                         >
                             <ChevronLeft size={16} />
                         </button>
                         <button 
                             onClick={handleNextPage}
                             disabled={currentPage === totalPages}
-                            className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-100 disabled:opacity-50 transition-all cursor-pointer"
+                            className="p-2 rounded-lg border border-[#E2E6EE] text-[#667085] hover:bg-[#F3F5F9] disabled:opacity-50 transition-all cursor-pointer"
                         >
                             <ChevronRight size={16} />
                         </button>

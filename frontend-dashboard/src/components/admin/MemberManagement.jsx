@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Edit2, ShieldCheck, ShieldAlert, X, User, Car } from 'lucide-react';
 import axios from 'axios';
+import { wibDate } from '../../utils/time';
 
 const API_URL = 'http://localhost:8000/api';
 
@@ -45,7 +46,6 @@ const MemberManagement = () => {
         const delayDebounceFn = setTimeout(() => {
             fetchCustomers(searchQuery);
         }, 500);
-
         return () => clearTimeout(delayDebounceFn);
     }, [searchQuery, fetchCustomers]);
 
@@ -72,19 +72,16 @@ const MemberManagement = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsLoading(true);
-
         try {
             const payload = {
                 is_active: formData.is_active,
                 expired_at: formData.is_active ? formData.expired_at : null
             };
-
             const response = await axios.post(
                 `${API_URL}/admin/members/customers/${selectedCustomer.id}/toggle`, 
                 payload, 
                 { headers }
             );
-            
             showMessage('success', response.data.message);
             closeModal();
             fetchCustomers(searchQuery);
@@ -98,16 +95,15 @@ const MemberManagement = () => {
     };
 
     return (
-        <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E6EE] shadow-sm">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-5 pb-4 border-b border-gray-100 gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-5 pb-4 border-b border-[#E2E6EE] gap-4">
                 <div>
-                    <h1 className="text-xl font-bold text-gray-800">Aktivasi Membership</h1>
-                    <p className="text-sm text-gray-500 mt-1">Cari pelanggan yang sudah terdaftar untuk mengaktifkan status keanggotaannya.</p>
+                    <h1 className="text-xl font-bold text-[#101828]">Aktivasi Membership</h1>
+                    <p className="text-sm text-[#667085] mt-1">Cari pelanggan yang sudah terdaftar untuk mengaktifkan status keanggotaannya.</p>
                 </div>
             </div>
 
-            {/* Alert message */}
             {message.text && (
                 <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium border flex items-center gap-2 ${
                     message.type === 'success'
@@ -121,25 +117,25 @@ const MemberManagement = () => {
 
             {/* Search Bar */}
             <div className="relative mb-5">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
                 <input
                     type="text"
                     placeholder="Cari nama, email, atau plat nomor pelanggan..."
-                    className="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-gray-400 focus:bg-white transition-colors placeholder:text-gray-400"
+                    className="w-full bg-[#F3F5F9] border border-[#E2E6EE] text-[#101828] text-sm rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-[#26468A] focus:bg-white transition-colors placeholder:text-[#98A2B3]"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
             </div>
 
             {/* Table */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden overflow-x-auto">
+            <div className="border border-[#E2E6EE] rounded-xl overflow-hidden overflow-x-auto">
                 {isFetching ? (
-                    <div className="py-16 text-center text-gray-400 text-sm">
+                    <div className="py-16 text-center text-[#98A2B3] text-sm">
                         Mencari data pelanggan...
                     </div>
                 ) : (
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-gray-50 text-gray-500 border-b border-gray-200 text-xs font-semibold uppercase tracking-wide">
+                        <thead className="bg-[#F3F5F9] text-[#667085] border-b border-[#E2E6EE] text-xs font-semibold uppercase tracking-wide">
                             <tr>
                                 <th className="px-6 py-3.5">Pelanggan</th>
                                 <th className="px-6 py-3.5">Plat Nomor</th>
@@ -148,10 +144,10 @@ const MemberManagement = () => {
                                 <th className="px-6 py-3.5 text-right">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-[#E2E6EE]">
                             {customers.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-12 text-center text-gray-400 text-sm">
+                                    <td colSpan="5" className="px-6 py-12 text-center text-[#98A2B3] text-sm">
                                         Tidak ada data pelanggan yang cocok dengan pencarian.
                                     </td>
                                 </tr>
@@ -162,40 +158,39 @@ const MemberManagement = () => {
                                     const phone = customer.phone_number ?? '-';
                                     const plate = customer.registered_plate_number ?? '-';
                                     const isActive = customer.member?.is_active ?? false;
-                                    
                                     const expiredAt = customer.member?.expired_at 
-                                        ? new Date(customer.member.expired_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+                                        ? wibDate(customer.member.expired_at, { day: 'numeric', month: 'short', year: 'numeric' })
                                         : '-';
 
                                     return (
-                                        <tr key={customer.id} className="hover:bg-gray-50/70 transition-colors">
+                                        <tr key={customer.id} className="hover:bg-[#F3F5F9]/70 transition-colors">
                                             <td className="px-6 py-4">
-                                                <div className="font-medium text-gray-800">{name}</div>
-                                                <div className="text-xs text-gray-400 mt-0.5">{phone} · {email}</div>
+                                                <div className="font-medium text-[#101828]">{name}</div>
+                                                <div className="text-xs text-[#98A2B3] mt-0.5">{phone} · {email}</div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="px-2.5 py-1 bg-gray-50 border border-gray-200 rounded-md font-mono text-gray-700 tracking-widest text-xs">
+                                                <span className="px-2.5 py-1 bg-[#F3F5F9] border border-[#E2E6EE] rounded-md font-mono text-[#475467] tracking-widest text-xs">
                                                     {plate}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
                                                 {isActive ? (
-                                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Aktif
+                                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Aktif
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-gray-300" /> Nonaktif
+                                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#98A2B3]">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-[#E2E6EE]" /> Nonaktif
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="px-6 py-4 text-gray-600">
+                                            <td className="px-6 py-4 text-[#475467]">
                                                 {expiredAt}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <button
                                                     onClick={() => openModal(customer)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-600 hover:text-gray-800 rounded-lg transition-colors text-xs font-medium border border-gray-200"
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#F3F5F9] hover:bg-[#E2E6EE] text-[#475467] hover:text-[#101828] rounded-lg transition-colors text-xs font-medium border border-[#E2E6EE]"
                                                 >
                                                     <Edit2 size={13} /> Kelola Status
                                                 </button>
@@ -211,43 +206,41 @@ const MemberManagement = () => {
 
             {/* Modal Edit Status */}
             {isModalOpen && selectedCustomer && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl border border-gray-200 w-full max-w-md overflow-hidden shadow-2xl">
-                        <div className="flex justify-between items-center p-6 border-b border-gray-100">
-                            <h2 className="text-lg font-bold text-gray-800">Kelola Membership</h2>
-                            <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#101828]/40 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl border border-[#E2E6EE] w-full max-w-md overflow-hidden shadow-2xl">
+                        <div className="flex justify-between items-center p-6 border-b border-[#E2E6EE]">
+                            <h2 className="text-lg font-bold text-[#101828]">Kelola Membership</h2>
+                            <button onClick={closeModal} className="text-[#98A2B3] hover:text-[#101828] transition-colors">
                                 <X size={20} />
                             </button>
                         </div>
 
-                        {/* Info Pelanggan (Read-only) */}
-                        <div className="p-6 pb-2 border-b border-gray-100 bg-gray-50/50">
+                        <div className="p-6 pb-2 border-b border-[#E2E6EE] bg-[#F3F5F9]">
                             <div className="flex items-start gap-3 mb-4">
-                                <div className="p-2 bg-white rounded-lg border border-gray-200 text-gray-400">
+                                <div className="p-2 bg-white rounded-lg border border-[#E2E6EE] text-[#98A2B3]">
                                     <User size={18} />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-semibold text-gray-800">{selectedCustomer.user?.name}</p>
-                                    <p className="text-xs text-gray-500">{selectedCustomer.user?.email}</p>
+                                    <p className="text-sm font-semibold text-[#101828]">{selectedCustomer.user?.name}</p>
+                                    <p className="text-xs text-[#667085]">{selectedCustomer.user?.email}</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-3 mb-4">
-                                <div className="p-2 bg-white rounded-lg border border-gray-200 text-gray-400">
+                                <div className="p-2 bg-white rounded-lg border border-[#E2E6EE] text-[#98A2B3]">
                                     <Car size={18} />
                                 </div>
                                 <div>
-                                    <p className="text-xs text-gray-400">Plat Terdaftar</p>
-                                    <p className="font-mono text-sm font-semibold text-gray-800 tracking-widest">{selectedCustomer.registered_plate_number}</p>
+                                    <p className="text-xs text-[#98A2B3]">Plat Terdaftar</p>
+                                    <p className="font-mono text-sm font-semibold text-[#101828] tracking-widest">{selectedCustomer.registered_plate_number}</p>
                                 </div>
                             </div>
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-                            {/* Toggle Status */}
-                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                            <div className="flex items-center justify-between p-4 bg-[#F3F5F9] rounded-xl border border-[#E2E6EE]">
                                 <div>
-                                    <p className="text-sm font-medium text-gray-800">Status Membership</p>
-                                    <p className={`text-xs mt-1 ${formData.is_active ? 'text-emerald-600' : 'text-gray-400'}`}>
+                                    <p className="text-sm font-medium text-[#101828]">Status Membership</p>
+                                    <p className={`text-xs mt-1 ${formData.is_active ? 'text-emerald-600' : 'text-[#98A2B3]'}`}>
                                         {formData.is_active ? 'Aktif' : 'Nonaktif / Reguler'}
                                     </p>
                                 </div>
@@ -255,7 +248,7 @@ const MemberManagement = () => {
                                     type="button"
                                     onClick={() => setFormData(prev => ({ ...prev, is_active: !prev.is_active }))}
                                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                                        formData.is_active ? 'bg-emerald-500' : 'bg-gray-300'
+                                        formData.is_active ? 'bg-emerald-500' : 'bg-[#E2E6EE]'
                                     }`}
                                 >
                                     <span
@@ -266,9 +259,8 @@ const MemberManagement = () => {
                                 </button>
                             </div>
 
-                            {/* Tanggal Kedaluwarsa */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                <label className="block text-sm font-medium text-[#475467] mb-2">
                                     Berlaku Hingga
                                 </label>
                                 <input
@@ -277,20 +269,20 @@ const MemberManagement = () => {
                                     disabled={!formData.is_active}
                                     value={formData.expired_at}
                                     onChange={(e) => setFormData(prev => ({ ...prev, expired_at: e.target.value }))}
-                                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:border-gray-400 focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-full bg-[#F3F5F9] border border-[#E2E6EE] rounded-lg px-4 py-2.5 text-[#101828] focus:outline-none focus:border-[#26468A] focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
                                 />
                             </div>
 
                             <div className="pt-2 flex gap-3">
                                 <button
                                     type="button" onClick={closeModal}
-                                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-lg font-medium transition-colors text-sm"
+                                    className="flex-1 bg-[#EEF1F5] hover:bg-[#E2E6EE] text-[#475467] py-2.5 rounded-lg font-medium transition-colors text-sm"
                                 >
                                     Batal
                                 </button>
                                 <button
                                     type="submit" disabled={isLoading}
-                                    className="flex-1 bg-gray-800 hover:bg-gray-900 text-white py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 text-sm"
+                                    className="flex-1 bg-[#26468A] hover:bg-[#1d3872] text-white py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 text-sm"
                                 >
                                     {isLoading ? 'Menyimpan...' : 'Simpan Status'}
                                 </button>

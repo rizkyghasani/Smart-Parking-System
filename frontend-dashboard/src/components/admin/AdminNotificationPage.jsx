@@ -4,6 +4,7 @@ import {
     Bell, AlertTriangle, CheckCircle, Info, Clock, 
     RotateCcw, User, FileText, CheckCheck, Filter, Trash2
 } from 'lucide-react';
+import { wibDate, wibTime } from '../../utils/time';
 
 const AdminNotificationPage = () => {
     const [notifications, setNotifications] = useState([]);
@@ -59,9 +60,7 @@ const AdminNotificationPage = () => {
 
     const formatDateTime = (dateString) => {
         if (!dateString) return '-';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) + ', ' + 
-               date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+        return `${wibDate(dateString, { day: 'numeric', month: 'short' })}, ${wibTime(dateString)} WIB`;
     };
 
     const currentData = filterUnresolved 
@@ -69,20 +68,20 @@ const AdminNotificationPage = () => {
         : notifications;
 
     return (
-        <div className="bg-white p-6 rounded-2xl border border-gray-200/80 shadow-sm min-h-[500px] flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="bg-white p-6 rounded-2xl border border-[#E2E6EE] shadow-sm min-h-[500px] flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-gray-100">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-4 border-b border-[#E2E6EE]">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                        <Bell size={20} className="text-gray-400" /> Supervisi Notifikasi
+                    <h2 className="text-xl font-bold text-[#101828] flex items-center gap-2">
+                        <Bell size={20} className="text-[#98A2B3]" /> Supervisi Notifikasi
                     </h2>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-[#667085] mt-1">
                         Pantau penanganan peringatan sistem dan lakukan eskalasi jika tugas diabaikan staf.
                     </p>
                 </div>
                 <button 
                     onClick={fetchNotifications}
-                    className="flex items-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-600 px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors border border-gray-200"
+                    className="flex items-center gap-2 bg-[#F3F5F9] hover:bg-[#E2E6EE] text-[#475467] px-4 py-2.5 rounded-xl text-xs font-semibold transition-colors border border-[#E2E6EE]"
                 >
                     <RotateCcw size={14} /> Refresh Data
                 </button>
@@ -94,8 +93,8 @@ const AdminNotificationPage = () => {
                     onClick={() => setFilterUnresolved(!filterUnresolved)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${
                         filterUnresolved 
-                            ? 'bg-gray-800 text-white border-gray-800' 
-                            : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                            ? 'bg-[#26468A] text-white border-[#26468A]' 
+                            : 'bg-white text-[#667085] border-[#E2E6EE] hover:bg-[#F3F5F9]'
                     }`}
                 >
                     <Filter size={13} /> {filterUnresolved ? 'Menampilkan: Belum Ditangani' : 'Tampilkan Belum Ditangani Saja'}
@@ -105,7 +104,7 @@ const AdminNotificationPage = () => {
             {/* List Notifikasi */}
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-3 max-h-[calc(100vh-16rem)]">
                 {loading ? (
-                    <div className="py-12 text-center text-gray-400 text-sm">Memuat data supervisi...</div>
+                    <div className="py-12 text-center text-[#98A2B3] text-sm">Memuat data supervisi...</div>
                 ) : currentData.length > 0 ? (
                     currentData.map((notif) => {
                         const isViolation = notif.type === 'violation';
@@ -115,7 +114,6 @@ const AdminNotificationPage = () => {
                         const isResolved = notif.resolved_by !== null || isInfo;
                         const isEscalation = notif.title.includes('[ESKALASI ADMIN]');
 
-                        // Warna aksen tipis, hanya dipakai untuk left-border & ikon — bukan blok warna penuh
                         const accentBorder = isEscalation
                             ? 'border-l-rose-500'
                             : isViolation
@@ -123,35 +121,35 @@ const AdminNotificationPage = () => {
                                 : isManualRequest
                                     ? 'border-l-amber-300'
                                     : isInfo
-                                        ? 'border-l-blue-200'
-                                        : 'border-l-gray-200';
+                                        ? 'border-l-[#26468A]/30'
+                                        : 'border-l-[#E2E6EE]';
 
                         return (
                             <div
                                 key={notif.id}
-                                className={`relative p-4 rounded-xl border border-gray-100 border-l-4 ${accentBorder} bg-white hover:bg-gray-50/50 transition-colors flex flex-col md:flex-row gap-4 items-start md:items-center justify-between ${isResolved ? 'opacity-70 hover:opacity-100' : ''}`}
+                                className={`relative p-4 rounded-xl border border-[#E2E6EE] border-l-4 ${accentBorder} bg-white hover:bg-[#F3F5F9]/50 transition-colors flex flex-col md:flex-row gap-4 items-start md:items-center justify-between ${isResolved ? 'opacity-70 hover:opacity-100' : ''}`}
                             >
                                 <div className="flex gap-3.5 items-start w-full md:w-auto">
-                                    <div className="flex-shrink-0 mt-0.5 text-gray-400">
+                                    <div className="flex-shrink-0 mt-0.5 text-[#98A2B3]">
                                         {isEscalation ? (
                                             <AlertTriangle size={18} className="text-rose-500" />
                                         ) : isViolation ? (
                                             <AlertTriangle size={18} className="text-rose-400" />
                                         ) : isManualRequest ? (
-                                            <FileText size={18} className="text-amber-500" />
+                                            <FileText size={18} className="text-[#C97A1D]" />
                                         ) : (
-                                            <Info size={18} className="text-blue-400" />
+                                            <Info size={18} className="text-[#26468A]" />
                                         )}
                                     </div>
 
                                     <div className="flex-1">
-                                        <h4 className={`text-sm font-semibold tracking-tight ${isEscalation ? 'text-rose-600' : 'text-gray-800'}`}>
+                                        <h4 className={`text-sm font-semibold tracking-tight ${isEscalation ? 'text-rose-600' : 'text-[#101828]'}`}>
                                             {notif.title}
                                         </h4>
-                                        <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">
+                                        <p className="text-sm text-[#667085] mt-0.5 leading-relaxed">
                                             {notif.body}
                                         </p>
-                                        <span className="text-xs text-gray-400 flex items-center gap-1.5 mt-2">
+                                        <span className="text-xs text-[#98A2B3] flex items-center gap-1.5 mt-2">
                                             <Clock size={11} /> {formatDateTime(notif.created_at)}
                                         </span>
                                     </div>
@@ -162,12 +160,12 @@ const AdminNotificationPage = () => {
                                     {isResolved ? (
                                         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
                                             <div className="text-right">
-                                                <p className="text-xs font-medium text-gray-600 flex items-center justify-end gap-1.5">
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${isInfo ? 'bg-blue-400' : 'bg-emerald-400'}`} />
+                                                <p className="text-xs font-medium text-[#475467] flex items-center justify-end gap-1.5">
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${isInfo ? 'bg-[#26468A]' : 'bg-emerald-500'}`} />
                                                     {isInfo ? 'Log aktivitas' : 'Sudah ditangani'}
                                                 </p>
                                                 {(!isInfo || notif.resolver_name) && (
-                                                    <p className="text-[11px] text-gray-400 mt-0.5">
+                                                    <p className="text-[11px] text-[#98A2B3] mt-0.5">
                                                         {notif.resolver_name || 'Sistem'} · {formatDateTime(notif.resolved_at || notif.created_at)}
                                                     </p>
                                                 )}
@@ -175,7 +173,7 @@ const AdminNotificationPage = () => {
 
                                             <button
                                                 onClick={() => handleDelete(notif.id)}
-                                                className="p-2 text-gray-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                                                className="p-2 text-[#E2E6EE] hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
                                                 title="Hapus riwayat ini"
                                             >
                                                 <Trash2 size={15} />
@@ -183,14 +181,14 @@ const AdminNotificationPage = () => {
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                                            <span className="text-xs font-medium text-amber-600 flex items-center gap-1.5">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                                            <span className="text-xs font-medium text-[#C97A1D] flex items-center gap-1.5">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-[#C97A1D] animate-pulse" />
                                                 Menunggu petugas
                                             </span>
                                             
                                             <button
                                                 onClick={() => handleRetrigger(notif.id)}
-                                                className="bg-gray-800 hover:bg-gray-900 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors whitespace-nowrap"
+                                                className="bg-[#26468A] hover:bg-[#1d3872] text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors whitespace-nowrap"
                                             >
                                                 Eskalasi
                                             </button>
@@ -201,11 +199,11 @@ const AdminNotificationPage = () => {
                         );
                     })
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-3 py-20">
-                        <CheckCircle size={40} className="text-gray-200" />
+                    <div className="h-full flex flex-col items-center justify-center text-[#98A2B3] space-y-3 py-20">
+                        <CheckCircle size={40} className="text-[#E2E6EE]" />
                         <div className="text-center">
-                            <p className="font-semibold text-sm text-gray-500">Supervisi Aman</p>
-                            <p className="text-xs text-gray-400 mt-1">
+                            <p className="font-semibold text-sm text-[#667085]">Supervisi Aman</p>
+                            <p className="text-xs text-[#98A2B3] mt-1">
                                 {filterUnresolved ? 'Semua notifikasi sudah ditangani oleh staf.' : 'Belum ada riwayat notifikasi sistem.'}
                             </p>
                         </div>

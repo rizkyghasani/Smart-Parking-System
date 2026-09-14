@@ -22,7 +22,7 @@ class AdminTransactionController extends Controller
             $search = $request->query('search', '');
 
             // Ambil semua transaksi beserta relasi slot dan profil customer (jika ada)
-            $transactions = ParkingTransaction::with(['slot', 'customer.user'])
+            $transactions = ParkingTransaction::with(['slot', 'customer.user', 'manualVerification', 'detectedSlot', 'revenueConfig'])
                 ->when($search, function ($query) use ($search) {
                     $lowerSearch = strtolower(trim($search));
                     $query->whereRaw('LOWER(plate_number) LIKE ?', ["%{$lowerSearch}%"]);

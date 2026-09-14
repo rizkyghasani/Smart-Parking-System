@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Customer\CustomerDashboardController;
 use App\Http\Controllers\Api\Staff\StaffController;
 use App\Http\Controllers\Api\Admin\AdminTransactionController;
 use App\Http\Controllers\Api\Admin\AdminNotificationController;
+use App\Http\Controllers\Api\Admin\AdminReportController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -102,6 +103,10 @@ Route::prefix('admin')->middleware('auth:sanctum', 'role:admin')->group(function
     Route::get('/members/customers/{id}', [MemberController::class, 'show']); // Detail Profil
     Route::post('/members/customers/{id}/toggle', [MemberController::class, 'toggleMembership']); // Aktivasi/Deaktivasi
     Route::delete('/members/{id}', [MemberController::class, 'destroy']); // Hapus Permanen
+
+    Route::get('/reports/revenue', [AdminReportController::class, 'revenueReport']);
+    Route::get('/reports/revenue/export-pdf', [AdminReportController::class, 'exportPdf']);
+    Route::get('/reports/revenue/export-excel', [AdminReportController::class, 'exportExcel']);
 
 });
 

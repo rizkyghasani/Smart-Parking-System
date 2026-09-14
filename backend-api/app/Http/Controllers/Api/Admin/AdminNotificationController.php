@@ -11,11 +11,11 @@ class AdminNotificationController extends Controller
     //1. Mengambil semua notifikasi untuk Admin (termasuk nama staf penyelesai)
     public function index()
     {
-        // Menggunakan join agar tidak perlu repot mengubah file Model Notification.php
+        // Admin
         $notifications = Notification::select('notifications.*', 'users.name as resolver_name')
             ->leftJoin('users', 'notifications.resolved_by', '=', 'users.id')
             ->latest('notifications.created_at')
-            ->limit(100) // Batasi 100 terakhir agar memori aman
+            ->limit(100) 
             ->get();
 
         return response()->json([

@@ -184,7 +184,6 @@ class StaffController extends Controller
                 'resolved_at' => now(),
             ]);
 
-            // TANDAI SEMUA NOTIFIKASI TERKAIT TRANSAKSI INI MENJADI SELESAI
             Notification::where('transaction_id', $transaction->id)
                 ->whereNull('resolved_by')
                 ->update([
@@ -203,7 +202,7 @@ class StaffController extends Controller
     }
 
     public function notifications()
-    {
+    {   #staff
         $notifications = Notification::whereNull('to_user_id')
             ->orWhere('to_user_id', Auth::id())
             ->latest()

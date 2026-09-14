@@ -15,7 +15,6 @@ const StaffLayout = ({ onLogout }) => {
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    // State untuk Modal Verifikasi STNK (Mobil UNKNOWN)
     const [showStnkModal, setShowStnkModal] = useState(false);
     const [targetTxIdForStnk, setTargetTxIdForStnk] = useState(null);
 
@@ -63,21 +62,13 @@ const StaffLayout = ({ onLogout }) => {
 
     useEffect(() => {
         fetchData();
-
-        // WebSocket listener untuk update slot & stats real-time (instan kalau berhasil terkirim)
         const channel = echo.channel('parking-channel');
         channel.listen('.SlotUpdated', (e) => {
             setSlots(prev => prev.map(slot => slot.id === e.slot.id ? { ...slot, ...e.slot } : slot));
             fetchData();
         });
-
-        // Polling notifikasi tiap 8 detik
         const notifInterval = setInterval(fetchNotificationsOnly, 8000);
-
-        // 🌟 BARU: Polling cadangan untuk dashboard stats & denah tiap 10 detik.
-        // Ini jaring pengaman kalau broadcast WebSocket (.SlotUpdated) gagal terkirim
         const dataInterval = setInterval(fetchData, 10000);
-
         return () => {
             channel.stopListening('.SlotUpdated');
             clearInterval(notifInterval);
@@ -102,18 +93,12 @@ const StaffLayout = ({ onLogout }) => {
             alert('Silakan masukkan nomor plat kendaraan.');
             return;
         }
-
         if (!window.confirm(`Proses keluar manual untuk kendaraan dengan plat ${manualPlateInput.toUpperCase()}?`)) return;
-
         setLoadingManualTapOut(true);
         try {
-            const response = await axiosInstance.post('/staff/tap-out-by-plate', {
-                plate_number: manualPlateInput.trim()
-            });
-
+            const response = await axiosInstance.post('/staff/tap-out-by-plate', { plate_number: manualPlateInput.trim() });
             const data = response.data;
             alert(`Tap-Out Manual Berhasil!\nPlat: ${data.plate_number || manualPlateInput}\nTotal Biaya: Rp ${Number(data.total_fee || 0).toLocaleString('id-ID')}`);
-            
             setManualPlateInput('');
             setShowManualTapOutModal(false);
             fetchData();
@@ -129,16 +114,13 @@ const StaffLayout = ({ onLogout }) => {
         localStorage.removeItem('staff_token');
         localStorage.removeItem('staff_user');
         setIsLoggingOut(false);
-        
         if (typeof onLogout === 'function') {
             onLogout();
         } else {
-            window.location.reload(); 
+            window.location.reload();
         }
     };
 
-    // 🌟 Fungsi untuk mentrigger modal Verifikasi STNK jika dibutuhkan
-    // Bisa dipanggil dari komponen anak (seperti NotificationCenter) dengan passing function
     const openStnkVerification = (transactionId) => {
         setTargetTxIdForStnk(transactionId);
         setShowStnkModal(true);
@@ -165,30 +147,30 @@ const StaffLayout = ({ onLogout }) => {
             );
             case 'dashboard':
             default:
-                if (!dashboardStats) return <div className="p-10 text-center text-gray-500">Memuat Panel Staff...</div>;
+                if (!dashboardStats) return <div className="p-10 text-center text-[#667085]">Memuat Panel Staff...</div>;
                 return (
                     <div className="p-6 h-full flex flex-col">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                             <div>
-                                <h2 className="text-2xl font-bold text-gray-800">
+                                <h2 className="text-2xl font-bold text-[#101828]">
                                     Selamat Bertugas, {staffUser.name || 'Petugas'}
                                 </h2>
-                                <p className="text-sm text-gray-500">Pantau ketersediaan slot parkir secara real-time.</p>
+                                <p className="text-sm text-[#667085]">Pantau ketersediaan slot parkir secara real-time.</p>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                <p className="text-xs text-gray-500 uppercase font-bold tracking-widest">Tersedia</p>
+                            <div className="bg-white p-5 rounded-2xl border border-[#E2E6EE] shadow-sm">
+                                <p className="text-xs text-[#98A2B3] uppercase font-bold tracking-widest">Tersedia</p>
                                 <p className="text-3xl font-black text-emerald-600 mt-1">{dashboardStats.slots.available}</p>
                             </div>
-                            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                <p className="text-xs text-gray-500 uppercase font-bold tracking-widest">Terisi</p>
-                                <p className="text-3xl font-black text-blue-600 mt-1">{dashboardStats.slots.occupied}</p>
+                            <div className="bg-white p-5 rounded-2xl border border-[#E2E6EE] shadow-sm">
+                                <p className="text-xs text-[#98A2B3] uppercase font-bold tracking-widest">Terisi</p>
+                                <p className="text-3xl font-black text-[#26468A] mt-1">{dashboardStats.slots.occupied}</p>
                             </div>
-                            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-                                <p className="text-xs text-gray-500 uppercase font-bold tracking-widest">Transaksi Aktif</p>
-                                <p className="text-3xl font-black text-gray-800 mt-1">{dashboardStats.active_transactions_count}</p>
+                            <div className="bg-white p-5 rounded-2xl border border-[#E2E6EE] shadow-sm">
+                                <p className="text-xs text-[#98A2B3] uppercase font-bold tracking-widest">Transaksi Aktif</p>
+                                <p className="text-3xl font-black text-[#101828] mt-1">{dashboardStats.active_transactions_count}</p>
                             </div>
                             <button
                                 onClick={() => setActiveTab('monitor')}
@@ -199,11 +181,11 @@ const StaffLayout = ({ onLogout }) => {
                             </button>
                         </div>
 
-                        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex-1">
+                        <div className="bg-white p-6 rounded-2xl border border-[#E2E6EE] shadow-sm flex-1">
                             <div className="mb-4">
-                                <h3 className="text-lg font-bold text-gray-800">Denah Visual Layout</h3>
+                                <h3 className="text-lg font-bold text-[#101828]">Denah Visual Layout</h3>
                             </div>
-                            <div className="rounded-xl overflow-hidden border border-gray-200 bg-slate-900 p-2">
+                            <div className="rounded-xl overflow-hidden border border-[#E2E6EE] bg-[#EEF1F5] p-2">
                                 <SpatialParkingLayout 
                                     slots={slots}
                                     selectedSlot={selectedSlot}
@@ -218,28 +200,25 @@ const StaffLayout = ({ onLogout }) => {
     };
 
     return (
-        <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
-            <aside className={`bg-slate-900 text-slate-200 flex flex-col justify-between shadow-lg transition-all duration-300 ease-in-out overflow-hidden ${sidebarOpen ? 'w-64' : 'w-0'}`}>
+        <div className="flex h-screen bg-[#F3F5F9] overflow-hidden">
+            <aside className={`bg-white text-[#475467] flex flex-col justify-between shadow-sm border-r border-[#E2E6EE] transition-all duration-300 ease-in-out overflow-hidden ${sidebarOpen ? 'w-64' : 'w-0'}`}>
                 <div>
-                    <div className="p-5 border-b border-slate-800 flex items-center space-x-3 whitespace-nowrap">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center font-bold text-white text-lg flex-shrink-0">
-                            S
-                        </div>
-                        <span className="font-bold text-lg tracking-wider text-white">STAFF PANEL</span>
+                    <div className="p-5 border-b border-[#E2E6EE] flex items-center space-x-3 whitespace-nowrap">
+                        <div className="w-8 h-8 rounded-lg bg-[#C97A1D] flex items-center justify-center font-bold text-white text-lg flex-shrink-0">S</div>
+                        <span className="font-bold text-lg tracking-wider text-[#101828]">STAFF PANEL</span>
                     </div>
                     <nav className="p-4 space-y-2">
                         {navItems.map(({ key, label, icon }) => (
                         <button
                             key={key}
                             onClick={() => setActiveTab(key)}
-                            className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center justify-between cursor-pointer ${activeTab === key ? 'bg-emerald-600 text-white shadow-md' : 'hover:bg-slate-800 text-slate-400 hover:text-slate-200'}`}
+                            className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center justify-between cursor-pointer ${activeTab === key ? 'bg-[#C97A1D]/10 text-[#C97A1D] shadow-sm font-semibold' : 'hover:bg-[#F3F5F9] text-[#667085] hover:text-[#101828]'}`}
                         >
                             <div className="flex items-center gap-3">
                                 <span className="opacity-80">{icon}</span>
                                 <span>{label}</span>
                             </div>
                             
-                            {/* Munculkan Badge Angka jika menu tersebut adalah notifications dan ada pesan baru */}
                             {key === 'notifications' && notifications.filter(n => n.read_at === null).length > 0 && (
                                 <span className="bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">
                                     {notifications.filter(n => n.read_at === null).length}
@@ -249,8 +228,8 @@ const StaffLayout = ({ onLogout }) => {
                         ))}
                     </nav>
                 </div>
-                <div className="p-4 border-t border-slate-800">
-                    <button onClick={handleLogout} disabled={isLoggingOut} className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-rose-400 hover:bg-slate-800 hover:text-rose-300 disabled:text-slate-600 transition-all flex items-center gap-3 whitespace-nowrap cursor-pointer">
+                <div className="p-4 border-t border-[#E2E6EE]">
+                    <button onClick={handleLogout} disabled={isLoggingOut} className="w-full text-left px-4 py-3 rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50 disabled:text-[#98A2B3] transition-all flex items-center gap-3 whitespace-nowrap cursor-pointer">
                         <span className="opacity-80"></span>
                         <span>{isLoggingOut ? 'Memproses..' : 'Keluar'}</span>
                     </button>
@@ -258,19 +237,19 @@ const StaffLayout = ({ onLogout }) => {
             </aside>
 
             <main className="flex-1 flex flex-col overflow-y-auto min-w-0">
-                <header className="bg-white h-16 border-b border-gray-200 flex items-center justify-between px-6 shadow-sm flex-shrink-0">
+                <header className="bg-white h-16 border-b border-[#E2E6EE] flex items-center justify-between px-6 shadow-sm flex-shrink-0">
                     <div className="flex items-center gap-4">
-                        <button onClick={() => setSidebarOpen(prev => !prev)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-all cursor-pointer">
+                        <button onClick={() => setSidebarOpen(prev => !prev)} className="p-2 rounded-lg hover:bg-[#EEF1F5] text-[#667085] hover:text-[#101828] transition-all cursor-pointer">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 {sidebarOpen ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />}
                             </svg>
                         </button>
-                        <span className="text-sm font-medium text-gray-500">Operasional Parkir Lapangan</span>
+                        <span className="text-sm font-medium text-[#667085]">Operasional Parkir Lapangan</span>
                     </div>
                     <div className="flex items-center space-x-4">
                         <button 
                             onClick={() => setIsNotifOpen(true)}
-                            className="relative text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                            className="relative text-[#98A2B3] hover:text-[#475467] transition-colors cursor-pointer"
                         >
                             <Bell size={20} />
                             {notifications.filter(n => n.read_at === null).length > 0 && (
@@ -279,9 +258,9 @@ const StaffLayout = ({ onLogout }) => {
                                 </span>
                             )}
                         </button>
-                        <div className="flex items-center space-x-2 border-l border-gray-200 pl-4">
+                        <div className="flex items-center space-x-2 border-l border-[#E2E6EE] pl-4">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-sm text-gray-700 font-medium">Online</span>
+                            <span className="text-sm text-[#101828] font-medium">Online</span>
                         </div>
                     </div>
                 </header>
@@ -304,15 +283,15 @@ const StaffLayout = ({ onLogout }) => {
 
             {/* MODAL MANUAL TAP-OUT BERDASARKAN PLAT */}
             {showManualTapOutModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-slate-900 border border-slate-700 p-6 rounded-3xl w-full max-w-md shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <div className="fixed inset-0 bg-[#101828]/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white border border-[#E2E6EE] p-6 rounded-2xl w-full max-w-md shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex justify-between items-center border-b border-[#E2E6EE] pb-4">
+                            <h3 className="text-lg font-bold text-[#101828] flex items-center gap-2">
                                 <Car className="text-rose-500" size={20} /> Manual Tap-Out Kendaraan
                             </h3>
                             <button 
                                 onClick={() => setShowManualTapOutModal(false)}
-                                className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                className="text-[#98A2B3] hover:text-[#101828] transition-colors cursor-pointer"
                             >
                                 <X size={20} />
                             </button>
@@ -320,19 +299,19 @@ const StaffLayout = ({ onLogout }) => {
 
                         <form onSubmit={handleManualTapOutSubmit} className="space-y-4">
                             <div>
-                                <label className="block text-xs text-slate-400 uppercase tracking-widest font-bold mb-2">
+                                <label className="block text-xs text-[#667085] uppercase tracking-widest font-bold mb-2">
                                     Masukkan Nomor Plat Terdaftar
                                 </label>
                                 <input 
                                     type="text" 
-                                    className="w-full bg-slate-950 border border-slate-700 text-white font-black tracking-widest text-lg p-3.5 rounded-xl focus:border-blue-500 focus:outline-none uppercase"
+                                    className="w-full bg-[#F3F5F9] border border-[#E2E6EE] text-[#101828] font-black tracking-widest text-lg p-3.5 rounded-xl focus:border-[#26468A] focus:outline-none uppercase"
                                     placeholder="Contoh: K 141 KU"
                                     value={manualPlateInput}
                                     onChange={(e) => setManualPlateInput(e.target.value)}
                                     required
                                     autoFocus
                                 />
-                                <p className="text-xs text-slate-500 mt-2">
+                                <p className="text-xs text-[#98A2B3] mt-2">
                                     Sistem akan mencari transaksi aktif berdasarkan plat nomor ini, memproses keluar, dan menghitung total biaya secara otomatis.
                                 </p>
                             </div>
@@ -341,14 +320,14 @@ const StaffLayout = ({ onLogout }) => {
                                 <button 
                                     type="button" 
                                     onClick={() => setShowManualTapOutModal(false)} 
-                                    className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-xl font-bold transition-colors text-sm cursor-pointer"
+                                    className="flex-1 bg-[#EEF1F5] hover:bg-[#E2E6EE] text-[#475467] py-3 rounded-xl font-bold transition-colors text-sm cursor-pointer"
                                 >
                                     Batal
                                 </button>
                                 <button 
                                     type="submit" 
                                     disabled={loadingManualTapOut} 
-                                    className="flex-1 bg-rose-600 hover:bg-rose-500 text-white py-3 rounded-xl font-bold transition-colors disabled:opacity-50 text-sm shadow-lg shadow-rose-900/40 cursor-pointer"
+                                    className="flex-1 bg-rose-600 hover:bg-rose-500 text-white py-3 rounded-xl font-bold transition-colors disabled:opacity-50 text-sm shadow-lg shadow-rose-200 cursor-pointer"
                                 >
                                     {loadingManualTapOut ? 'Memproses...' : 'Proses Keluar'}
                                 </button>
@@ -358,7 +337,6 @@ const StaffLayout = ({ onLogout }) => {
                 </div>
             )}
 
-            {/* 🌟 RENDER MODAL VERIFIKASI STNK (UNTUK UNKNOWN PLAT) */}
             <ManualVerificationModal 
                 isOpen={showStnkModal}
                 onClose={() => setShowStnkModal(false)}

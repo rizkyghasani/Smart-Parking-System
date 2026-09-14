@@ -1,6 +1,7 @@
 import React from 'react';
 import axios from 'axios';
-import { X, AlertTriangle, CheckCircle, Info, ArrowRightLeft, Clock, CheckCheck, FileText } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle, Info, ArrowRightLeft, Clock, CheckCheck, FileText, Bell } from 'lucide-react';
+import { wibTime } from '../../utils/time';
 
 const NotificationCenter = ({ isOpen, onClose, notifications, refreshData, onNavigateToMonitor, onOpenManualVerification }) => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
@@ -47,42 +48,39 @@ const NotificationCenter = ({ isOpen, onClose, notifications, refreshData, onNav
         onClose(); // tutup panel notif supaya modal verifikasi terlihat jelas
     };
 
-    const formatTime = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
-    };
+    const formatTime = (dateString) => `${wibTime(dateString)} WIB`;
 
     return (
         <>
             {isOpen && (
                 <div
-                    className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity"
+                    className="fixed inset-0 bg-[#101828]/50 backdrop-blur-sm z-50 transition-opacity"
                     onClick={onClose}
                 />
             )}
 
-            <div className={`fixed top-0 right-0 h-full w-full max-w-md bg-slate-900 border-l border-slate-800 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
+            <div className={`fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-[#E2E6EE] shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
 
-                <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950">
+                <div className="p-6 border-b border-[#E2E6EE] flex justify-between items-center bg-[#F3F5F9]">
                     <div>
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            Pusat Notifikasi
+                        <h2 className="text-xl font-bold text-[#101828] flex items-center gap-2">
+                            <Bell className="text-[#26468A]" size={24} /> Pusat Notifikasi
                         </h2>
-                        <p className="text-sm text-slate-400 mt-1">Peringatan sistem & pelanggaran area.</p>
+                        <p className="text-sm text-[#667085] mt-1">Peringatan sistem & pelanggaran area.</p>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-colors">
+                    <button onClick={onClose} className="p-2 bg-white hover:bg-[#EEF1F5] text-[#98A2B3] hover:text-[#101828] rounded-xl transition-colors border border-[#E2E6EE] cursor-pointer">
                         <X size={20} />
                     </button>
                 </div>
 
                 {unreadCount > 0 && (
-                    <div className="px-6 py-3 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
-                        <span className="text-xs text-slate-500 font-medium">
+                    <div className="px-6 py-3 border-b border-[#E2E6EE] bg-[#F3F5F9]/60 flex justify-between items-center">
+                        <span className="text-xs text-[#667085] font-medium">
                             {unreadCount} belum dibaca
                         </span>
                         <button
                             onClick={handleClearAll}
-                            className="text-xs text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1.5 transition-colors"
+                            className="text-xs text-[#26468A] hover:text-[#1d3872] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                         >
                             <CheckCheck size={14} /> Tandai Semua Dibaca
                         </button>
@@ -101,45 +99,45 @@ const NotificationCenter = ({ isOpen, onClose, notifications, refreshData, onNav
                                     key={notif.id}
                                     className={`relative p-5 rounded-2xl border transition-all ${
                                         isRead
-                                            ? 'bg-slate-950/50 border-slate-800 opacity-60'
+                                            ? 'bg-[#F3F5F9]/50 border-[#E2E6EE] opacity-60'
                                             : isViolation
-                                                ? 'bg-rose-950/30 border-rose-500/30 shadow-lg shadow-rose-900/20'
+                                                ? 'bg-rose-50 border-rose-300 shadow-lg shadow-rose-100'
                                                 : isManualRequest
-                                                    ? 'bg-amber-950/30 border-amber-500/30 shadow-lg shadow-amber-900/20'
-                                                    : 'bg-slate-800 border-slate-700'
+                                                    ? 'bg-amber-50 border-amber-300 shadow-lg shadow-amber-100'
+                                                    : 'bg-white border-[#E2E6EE]'
                                     }`}
                                 >
                                     {!isRead && (
-                                        <span className="absolute top-4 right-4 w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                                        <span className="absolute top-4 right-4 w-2 h-2 rounded-full bg-[#26468A] animate-pulse"></span>
                                     )}
 
                                     <div className="flex gap-4">
                                         <div className="flex-shrink-0 mt-1">
                                             {isViolation ? (
-                                                <div className="bg-rose-500/20 p-2 rounded-lg text-rose-500">
+                                                <div className="bg-rose-100 p-2 rounded-lg text-rose-600">
                                                     <AlertTriangle size={20} />
                                                 </div>
                                             ) : isManualRequest ? (
-                                                <div className="bg-amber-500/20 p-2 rounded-lg text-amber-500">
+                                                <div className="bg-[#C97A1D]/10 p-2 rounded-lg text-[#C97A1D]">
                                                     <FileText size={20} />
                                                 </div>
                                             ) : (
-                                                <div className="bg-blue-500/20 p-2 rounded-lg text-blue-400">
+                                                <div className="bg-[#26468A]/10 p-2 rounded-lg text-[#26468A]">
                                                     <Info size={20} />
                                                 </div>
                                             )}
                                         </div>
 
                                         <div className="flex-1">
-                                            <h4 className={`text-sm font-bold tracking-wide ${isViolation ? 'text-rose-400' : isManualRequest ? 'text-amber-400' : 'text-white'}`}>
+                                            <h4 className={`text-sm font-bold tracking-wide ${isViolation ? 'text-rose-700' : isManualRequest ? 'text-[#C97A1D]' : 'text-[#101828]'}`}>
                                                 {notif.title}
                                             </h4>
-                                            <p className="text-sm text-slate-300 mt-1 leading-relaxed">
+                                            <p className="text-sm text-[#475467] mt-1 leading-relaxed">
                                                 {notif.body}
                                             </p>
 
                                             <div className="flex items-center gap-4 mt-3">
-                                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-1">
+                                                <span className="text-[10px] text-[#98A2B3] font-bold uppercase tracking-widest flex items-center gap-1">
                                                     <Clock size={12} /> {formatTime(notif.created_at)}
                                                 </span>
                                             </div>
@@ -147,7 +145,7 @@ const NotificationCenter = ({ isOpen, onClose, notifications, refreshData, onNav
                                             {isViolation && !isRead && (
                                                 <button
                                                     onClick={() => handleActionClick(notif.id, isRead)}
-                                                    className="mt-4 w-full bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold uppercase tracking-widest py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                                                    className="mt-4 w-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold uppercase tracking-widest py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md shadow-rose-200 cursor-pointer"
                                                 >
                                                     <ArrowRightLeft size={14} /> Tindak Lanjuti (Override)
                                                 </button>
@@ -157,7 +155,7 @@ const NotificationCenter = ({ isOpen, onClose, notifications, refreshData, onNav
                                             {isManualRequest && !isRead && (
                                                 <button
                                                     onClick={() => handleManualVerificationClick(notif)}
-                                                    className="mt-4 w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-widest py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                                                    className="mt-4 w-full bg-[#C97A1D] hover:bg-[#b06a17] text-white text-xs font-bold uppercase tracking-widest py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors shadow-md shadow-[#C97A1D]/30 cursor-pointer"
                                                 >
                                                     <FileText size={14} /> Proses Verifikasi STNK
                                                 </button>
@@ -166,7 +164,7 @@ const NotificationCenter = ({ isOpen, onClose, notifications, refreshData, onNav
                                             {!isViolation && !isManualRequest && !isRead && (
                                                 <button
                                                     onClick={() => handleMarkAsRead(notif.id, isRead)}
-                                                    className="mt-3 text-xs text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1"
+                                                    className="mt-3 text-xs text-[#26468A] hover:text-[#1d3872] font-bold flex items-center gap-1 cursor-pointer"
                                                 >
                                                     <CheckCircle size={14} /> Tandai Dibaca
                                                 </button>
@@ -177,7 +175,7 @@ const NotificationCenter = ({ isOpen, onClose, notifications, refreshData, onNav
                             );
                         })
                     ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-3">
+                        <div className="h-full flex flex-col items-center justify-center text-[#98A2B3] space-y-3">
                             <CheckCircle size={48} className="text-emerald-500/50" />
                             <p className="font-bold tracking-widest uppercase text-sm">Semua Aman</p>
                             <p className="text-xs">Tidak ada notifikasi baru saat ini.</p>
