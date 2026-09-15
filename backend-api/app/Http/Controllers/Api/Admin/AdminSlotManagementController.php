@@ -9,6 +9,7 @@ use App\Models\Edge;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class AdminSlotManagementController extends Controller
 {
@@ -34,7 +35,7 @@ class AdminSlotManagementController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'slot_code' => 'required|string|max:20|unique:parking_slots,slot_code',
+            'slot_code' => ['required', 'string', 'max:20', Rule::unique('parking_slots', 'slot_code')->whereNull('deleted_at')],
             'x_coord'   => 'required|numeric',
             'y_coord'   => 'required|numeric',
         ]);
@@ -47,25 +48,89 @@ class AdminSlotManagementController extends Controller
             ], 422);
         }
 
-        return DB::transaction(function () use ($request) {
-            // 1. Buat data master slot
+        $code = strtoupper($request->slot_code);
+
+        // Cek apakah ada slot soft-deleted dengan kode yang sama
+        $existing = ParkingSlot::withTrashed()
+            ->whereRaw('UPPER(slot_code) = ?', [$code])
+            ->first();
+
+        return DB::transaction(function () use ($request, $code, $existing) {
+
+            if ($existing) {
+                // RESTORE baris lama
+                $existing->restore();
+                $existing->update([
+                    'x_coord' => $request->x_coord,
+                    'y_coord' => $request->y_coord,
+                    'status'  => 'available',
+                ]);
+
+                // Buat ulang Node (karena node lama sudah hard-delete)
+                $newNode = Node::create([
+                    'name'            => 'NODE_' . $code,
+                    'type'            => 'slot',
+                    'x'               => $request->x_coord,
+                    'y'               => $request->y_coord,
+                    'parking_slot_id' => $existing->id,
+                ]);
+
+                // Auto-connect ke node terdekat
+                $existingNodes = Node::where('id', '!=', $newNode->id)->get();
+                if ($existingNodes->isNotEmpty()) {
+                    $closestNode = null;
+                    $minDistance = INF;
+
+                    foreach ($existingNodes as $node) {
+                        $distance = sqrt(
+                            pow($newNode->x - $node->x, 2) +
+                            pow($newNode->y - $node->y, 2)
+                        );
+                        if ($distance < $minDistance) {
+                            $minDistance = $distance;
+                            $closestNode = $node;
+                        }
+                    }
+
+                    if ($closestNode && $minDistance <= 6.0) {
+                        Edge::create([
+                            'source_node_id' => $newNode->id,
+                            'target_node_id' => $closestNode->id,
+                            'weight'         => round($minDistance, 2),
+                            'description'    => 'Otomatis terhubung ke ' . $closestNode->name
+                        ]);
+                        Edge::create([
+                            'source_node_id' => $closestNode->id,
+                            'target_node_id' => $newNode->id,
+                            'weight'         => round($minDistance, 2),
+                            'description'    => 'Otomatis terhubung ke ' . $newNode->name
+                        ]);
+                    }
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Slot sebelumnya berhasil dipulihkan beserta titik node dan jalur grafnya.',
+                    'data'    => $existing
+                ], 201);
+            }
+
+            // Buat baris baru jika tidak ada yang di-restore
             $slot = ParkingSlot::create([
-                'slot_code' => strtoupper($request->slot_code),
+                'slot_code' => $code,
                 'x_coord'   => $request->x_coord,
                 'y_coord'   => $request->y_coord,
                 'status'    => 'available'
             ]);
 
-            // 2. Buat Node referensi graf untuk slot ini
             $newNode = Node::create([
-                'name'            => 'NODE_' . strtoupper($request->slot_code),
+                'name'            => 'NODE_' . $code,
                 'type'            => 'slot',
                 'x'               => $request->x_coord,
                 'y'               => $request->y_coord,
                 'parking_slot_id' => $slot->id,
             ]);
 
-            // 3. Auto-Connect: Cari node terdekat untuk membentuk Edge secara otomatis
             $existingNodes = Node::where('id', '!=', $newNode->id)->get();
 
             if ($existingNodes->isNotEmpty()) {
@@ -74,7 +139,7 @@ class AdminSlotManagementController extends Controller
 
                 foreach ($existingNodes as $node) {
                     $distance = sqrt(
-                        pow($newNode->x - $node->x, 2) + 
+                        pow($newNode->x - $node->x, 2) +
                         pow($newNode->y - $node->y, 2)
                     );
 
@@ -84,7 +149,6 @@ class AdminSlotManagementController extends Controller
                     }
                 }
 
-                // Jika node terdekat berada dalam radius wajar (<= 6 meter), hubungkan 2 arah
                 if ($closestNode && $minDistance <= 6.0) {
                     Edge::create([
                         'source_node_id' => $newNode->id,
@@ -126,7 +190,7 @@ class AdminSlotManagementController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'slot_code' => 'required|string|max:20|unique:parking_slots,slot_code,' . $id,
+            'slot_code' => ['required', 'string', 'max:20', Rule::unique('parking_slots', 'slot_code')->whereNull('deleted_at')->ignore($id)],
             'x_coord'   => 'required|numeric',
             'y_coord'   => 'required|numeric',
         ]);

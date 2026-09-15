@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -94,6 +94,7 @@ const AdminLayout = ({ onLogoutSuccess }) => {
 
     const [timeFilter, setTimeFilter] = useState('today');
     const [chartData, setChartData] = useState([]);
+    const [notifications, setNotifications] = useState([]);
 
     const [stats, setStats] = useState({
         total_revenue: 0,
@@ -104,6 +105,7 @@ const AdminLayout = ({ onLogoutSuccess }) => {
 
     const adminUser = JSON.parse(localStorage.getItem('admin_user') || '{}');
     const token = localStorage.getItem('admin_token');
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
     useEffect(() => {
         if (activeTab === 'dashboard') {
@@ -128,6 +130,25 @@ const AdminLayout = ({ onLogoutSuccess }) => {
             setLoadingStats(false);
         }
     };
+
+    const fetchNotificationsOnly = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_URL}/admin/notifications`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setNotifications(res.data.data || []);
+        } catch (error) {
+            console.error('Gagal mengambil notifikasi admin:', error);
+        }
+    }, [token, API_URL]);
+
+    useEffect(() => {
+        fetchNotificationsOnly();
+        const notifInterval = setInterval(fetchNotificationsOnly, 8000);
+        return () => clearInterval(notifInterval);
+    }, [fetchNotificationsOnly]);
+
+    const pendingCount = notifications.filter(n => n.resolved_by === null && n.type !== 'info').length;
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
@@ -307,6 +328,11 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                             >
                                 <Icon size={18} className="shrink-0 opacity-80" />
                                 <span>{label}</span>
+                                {key === 'supervision' && pendingCount > 0 && (
+                                    <span className="ml-auto bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">
+                                        {pendingCount}
+                                    </span>
+                                )}
                             </button>
                         ))}
                     </nav>
@@ -341,8 +367,22 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                         <span className="text-sm font-medium text-[#667085]">Sistem Parkir Cerdas &bull; Panel Admin</span>
                     </div>
                     <div className="flex items-center space-x-3">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-sm text-[#101828] font-medium capitalize">Mode {adminUser.role || 'Administrator'}</span>
+                        <button
+                            onClick={() => setActiveTab('supervision')}
+                            title="Pusat Notifikasi"
+                            className="relative text-[#98A2B3] hover:text-[#475467] transition-colors cursor-pointer"
+                        >
+                            <Bell size={20} />
+                            {pendingCount > 0 && (
+                                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full shadow-md animate-pulse">
+                                    {pendingCount}
+                                </span>
+                            )}
+                        </button>
+                        <div className="flex items-center space-x-2 border-l border-[#E2E6EE] pl-4">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <span className="text-sm text-[#101828] font-medium capitalize">Mode {adminUser.role || 'Administrator'}</span>
+                        </div>
                     </div>
                 </header>
                 <div className="p-8 h-[calc(100vh-4rem)] overflow-y-auto">

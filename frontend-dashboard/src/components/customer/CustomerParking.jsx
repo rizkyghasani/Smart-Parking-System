@@ -188,7 +188,7 @@ const CustomerParking = ({ activeTransaction, member, plate, onTransactionChange
             alert('Plat nomor tidak ditemukan pada profil Anda.');
             return;
         }
-        setShowVerifyModal(true);
+        setShowVerifyModal(true); //buka kamera
     };
 
     const handlePerformTapIn = async () => {
