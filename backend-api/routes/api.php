@@ -51,6 +51,8 @@ Route::prefix('parking')->group(function () {
     Route::post('/simulate-sensor', [ParkingController::class, 'simulateSensor']);
 
     Route::post('/request-manual-tapout', [ParkingController::class, 'requestManualTapOut']);
+
+    Route::post('/manual-tapout-preview', [ParkingController::class, 'previewManualTapOut']);
 });
 
 /**

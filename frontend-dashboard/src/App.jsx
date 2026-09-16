@@ -10,11 +10,11 @@ import LoginCustomer from './components/customer/LoginCustomer';
 import RegisterCustomer from './components/customer/RegisterCustomer';
 import SpatialParkingLayout from './SpatialParkingLayout';
 import { echo } from './services/echo.js';
-import { wibTime } from './utils/time';
+import { wibTime, wibDateTime } from './utils/time';
 import CameraStream from './components/CameraStream';
 import {
   Car, Monitor, Activity, LogOut, Scan, RefreshCcw, AlertCircle, X, CheckCircle, Receipt,
-  Camera, CameraOff, HardHat, UserRound, ShieldCheck, TriangleAlert, MapPin,
+  Camera, CameraOff, HardHat, UserRound, ShieldCheck, TriangleAlert, MapPin, Ticket, LifeBuoy,
 } from 'lucide-react';
 
 const AI_URL   = 'http://localhost:8001';
@@ -98,6 +98,12 @@ function ParkingModal({ modal, onClose }) {
             <span className="text-[#667085]">{isTapIn ? 'Waktu masuk' : 'Total durasi'}</span>
             <span className="text-[#101828] font-semibold">{isTapIn ? modal.time : modal.duration}</span>
           </div>
+          {isTapIn && modal.cardId && (
+            <div className="flex justify-between items-center">
+              <span className="text-[#667085]">Kode karcis/kartu</span>
+              <span className="text-[#101828] font-semibold font-mono text-xs tracking-wider">{modal.cardId}</span>
+            </div>
+          )}
           {!isTapIn && (
             <>
               <div className="flex justify-between">
@@ -134,6 +140,119 @@ function ParkingModal({ modal, onClose }) {
         >
           {isTapIn ? 'Oke, menuju slot' : 'Selesai'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================
+// Popup verifikasi karcis / kartu e-money — preview lalu konfirmasi
+// =============================================================
+function TicketModal({ open, onClose, input, setInput, preview, error, loading, onLookup, onConfirm, onReset }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-3xl w-full max-w-md shadow-2xl shadow-black/15 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-[#E2E6EE]">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#26468A]/10 flex items-center justify-center shrink-0">
+              <Ticket size={18} className="text-[#26468A]" />
+            </div>
+            <div>
+              <h3 className="text-[15px] font-bold text-[#101828]">Verifikasi Karcis / Kartu e-Money</h3>
+              <p className="text-[12px] text-[#98A2B3]">Cari transaksi aktif lalu terbitkan notifikasi tap-out manual.</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg text-[#98A2B3] hover:text-[#101828] hover:bg-[#F3F5F9] transition-colors flex items-center justify-center shrink-0"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="px-6 py-5">
+          {preview ? (
+            <>
+              <div className="rounded-2xl border border-[#E2E6EE] overflow-hidden mb-4">
+                <div className="px-4 py-3 bg-[#F3F5F9] border-b border-[#E2E6EE] flex items-center gap-2">
+                  <CheckCircle size={14} className="text-emerald-500" />
+                  <span className="text-[12px] font-bold text-[#101828] uppercase tracking-wider">Transaksi ditemukan</span>
+                </div>
+                <div className="px-4 py-4 flex items-center justify-between border-b border-[#E2E6EE]">
+                  <span className="text-[13px] text-[#667085]">Kode karcis/kartu</span>
+                  <span className="text-[13px] font-bold font-mono tracking-widest text-[#101828]">{preview.card_id}</span>
+                </div>
+                <div className="px-4 py-4 grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[12px] text-[#667085]">Slot</p>
+                    <p className="text-[15px] font-black font-mono text-[#26468A]">{preview.slot_code}</p>
+                  </div>
+                  <div>
+                    <p className="text-[12px] text-[#667085]">Plat nomor</p>
+                    <p className="text-[14px] font-bold font-mono text-[#101828]">{preview.plate_number || '—'}</p>
+                  </div>
+                </div>
+                <div className="px-4 py-4 border-t border-[#E2E6EE] bg-white">
+                  <p className="text-[12px] text-[#667085]">Jam masuk</p>
+                  <p className="text-[14px] font-bold text-[#101828]">{wibDateTime(preview.entry_time)}</p>
+                </div>
+              </div>
+
+              {error && (
+                <div className="mb-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-[12.5px] font-semibold px-4 py-3">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={onReset}
+                  className="px-4 py-3 rounded-xl border border-[#E2E6EE] text-[#667085] hover:text-[#101828] hover:border-[#26468A]/40 text-[13px] font-semibold transition-colors"
+                >
+                  Ganti kode
+                </button>
+                <button
+                  onClick={onConfirm}
+                  disabled={loading}
+                  className="flex-1 bg-[#26468A] hover:bg-[#1d3872] px-5 py-3 rounded-xl font-bold text-[13px] text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {loading ? 'Menerbitkan…' : <><LifeBuoy size={15} /> Konfirmasi & Terbitkan Notifikasi</>}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <label className="block text-[12px] font-bold text-[#667085] uppercase tracking-wider mb-2">Kode karcis/kartu</label>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !loading) onLookup(); }}
+                placeholder="cth: TCK-20260916-XXXX"
+                autoFocus
+                className="w-full bg-white border border-[#E2E6EE] text-[#101828] text-[14px] px-4 py-3 rounded-xl focus:border-[#26468A]/50 focus:outline-none placeholder:text-[#98A2B3] font-mono uppercase tracking-wider mb-4"
+              />
+
+              {error && (
+                <div className="mb-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 text-[12.5px] font-semibold px-4 py-3">
+                  {error}
+                </div>
+              )}
+
+              <button
+                onClick={onLookup}
+                disabled={loading}
+                className="w-full bg-[#26468A] hover:bg-[#1d3872] px-5 py-3 rounded-xl font-bold text-[13px] text-white transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loading ? (<><RefreshCcw size={15} className="animate-spin" /> Mencari transaksi…</>) : (<><Scan size={15} /> Cari Transaksi</>)}
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -193,6 +312,11 @@ function App() {
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
 
   const [showNoPlateBtn, setShowNoPlateBtn] = useState(false);
+  const [ticketInput,    setTicketInput]    = useState('');
+  const [ticketModalOpen, setTicketModalOpen] = useState(false);
+  const [ticketLoading,  setTicketLoading]  = useState(false);
+  const [ticketPreview,  setTicketPreview]  = useState(null);
+  const [ticketError,    setTicketError]    = useState('');
 
   const streamRef = React.useRef(null);
   const videoRef = React.useRef(null);
@@ -353,6 +477,7 @@ function App() {
         plate:    plate ?? `${slot?.slot_code ?? data.allocated_slot ?? 'N/A'}-UNKNOWN`,
         slotCode: slot?.slot_code ?? data.allocated_slot ?? 'N/A',
         time:     wibTime(data.transaction.entry_time),
+        cardId:   data.transaction?.card_id ?? data.card_id ?? '',
       });
 
       setDetectedPlate('');
@@ -406,10 +531,50 @@ function App() {
   const handleRequestManualTapOut = async (slotId) => {
     if (!window.confirm('Kirim permintaan bantuan petugas untuk tap-out manual? Mohon tunggu di lokasi Anda.')) return;
     try {
-      await axios.post(`${API_URL}/parking/request-manual-tapout`, { slot_id: slotId });
-      alert('Permintaan terkirim ke petugas. Mohon tunggu sebentar di lokasi Anda.');
+      const res = await axios.post(`${API_URL}/parking/request-manual-tapout`, { slot_id: slotId });
+      alert(res.data.message);
     } catch (error) {
       alert(error.response?.data?.message || 'Gagal mengirim permintaan bantuan.');
+    }
+  };
+
+  const handleTicketLookup = async () => {
+    const code = ticketInput.trim().toUpperCase();
+    if (!code) {
+      setTicketError('Masukkan kode karcis/kartu terlebih dahulu.');
+      return;
+    }
+    setTicketLoading(true);
+    setTicketError('');
+    setTicketPreview(null);
+    try {
+      const res = await axios.post(`${API_URL}/parking/manual-tapout-preview`, { card_id: code });
+      setTicketPreview(res.data.data);
+    } catch (error) {
+      setTicketError(error.response?.data?.message || 'Gagal mencari kode karcis/kartu.');
+    } finally {
+      setTicketLoading(false);
+    }
+  };
+
+  const handleTicketConfirm = async () => {
+    if (!ticketPreview) return;
+    setTicketLoading(true);
+    setTicketError('');
+    try {
+      const res = await axios.post(`${API_URL}/parking/request-manual-tapout`, { card_id: ticketPreview.card_id });
+
+      const found = slots.find(s => s.slot_code?.toUpperCase() === ticketPreview.slot_code?.toUpperCase());
+      if (found) setSelectedSlot(found);
+
+      alert(res.data.message + (res.data.slot_code ? ` (Slot ${res.data.slot_code})` : ''));
+      setTicketPreview(null);
+      setTicketInput('');
+      setTicketModalOpen(false);
+    } catch (error) {
+      setTicketError(error.response?.data?.message || 'Gagal menerbitkan notifikasi tap-out manual.');
+    } finally {
+      setTicketLoading(false);
     }
   };
 
@@ -564,6 +729,14 @@ function App() {
               {loading ? 'Memproses…' : 'Tap masuk'}
             </button>
 
+            <button
+                onClick={() => setTicketModalOpen(true)}
+                title="Verifikasi karcis / kartu e-money"
+                className="flex items-center justify-center w-11 h-11 rounded-xl border border-[#E2E6EE] bg-white text-[#475467] hover:border-[#26468A]/40 hover:text-[#26468A] hover:bg-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#26468A]/30"
+            >
+                <Ticket size={17} />
+            </button>
+
             {showNoPlateBtn && (
               <button
                 onClick={handleNoPlateTapIn}
@@ -687,6 +860,18 @@ return (
       />
 
       <ParkingModal modal={modal} onClose={closeModal} />
+      <TicketModal
+        open={ticketModalOpen}
+        onClose={() => { setTicketModalOpen(false); setTicketError(''); }}
+        input={ticketInput}
+        setInput={(v) => { setTicketInput(v); setTicketPreview(null); setTicketError(''); }}
+        preview={ticketPreview}
+        error={ticketError}
+        loading={ticketLoading}
+        onLookup={handleTicketLookup}
+        onConfirm={handleTicketConfirm}
+        onReset={() => { setTicketInput(''); setTicketPreview(null); setTicketError(''); }}
+      />
       {renderMainParkingContent()}
     </div>
   );

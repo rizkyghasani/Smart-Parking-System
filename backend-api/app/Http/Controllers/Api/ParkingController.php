@@ -326,47 +326,134 @@ class ParkingController extends Controller
     }
 
     /**
+     * Menampilkan detail transaksi aktif dari kode karcis/kartu (e-money),
+     * tanpa menerbitkan notifikasi. Dipakai sebagai langkah preview sebelum konfirmasi.
+     */
+    public function previewManualTapOut(Request $request)
+    {
+        $request->validate([
+            'card_id' => 'required|string',
+        ]);
+
+        [$transaction, $slot, $error] = $this->resolveCredentialTransaction($request);
+        if ($error) {
+            return $error;
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'data'    => [
+                'card_id'        => $transaction->card_id,
+                'slot_code'      => $slot->slot_code,
+                'plate_number'   => $transaction->plate_number,
+                'entry_time'     => $transaction->entry_time,
+                'transaction_id' => $transaction->id,
+            ]
+        ]);
+    }
+
+    /**
+     * Resolver kredensial untuk jalur manual tap-out.
+     * Mendukung lookup via slot_id (klik slot) ATAU card_id (kartu/karcis).
+     * Mengembalikan [$transaction, $slot, $errorResponse] — $errorResponse null bila berhasil.
+     */
+    private function resolveCredentialTransaction(Request $request)
+    {
+        if ($request->slot_id) {
+            $slot = ParkingSlot::findOrFail($request->slot_id);
+
+            if ($slot->status === 'violation') {
+                return [null, null, response()->json([
+                    'status'  => 'error',
+                    'message' => 'Slot ini dalam status pelanggaran. Silakan tunggu override dari petugas.'
+                ], 403)];
+            }
+
+            $transaction = ParkingTransaction::where('parking_slot_id', $slot->id)
+                ->whereNull('exit_time')
+                ->latest()
+                ->first();
+
+            if (!$transaction) {
+                return [null, null, response()->json([
+                    'status'  => 'error',
+                    'message' => 'Tidak ditemukan transaksi aktif di slot ini.'
+                ], 404)];
+            }
+
+            return [$transaction, $slot, null];
+        }
+
+        if ($request->filled('card_id')) {
+            // Jalur kredensial (kartu/karcis): kode card_id menarik transaksi aktif tanpa perlu tahu slot
+            $cardId = strtoupper(trim($request->card_id));
+
+            $transactions = ParkingTransaction::where('card_id', $cardId)
+                ->whereNull('exit_time')
+                ->latest()
+                ->get();
+
+            if ($transactions->isEmpty()) {
+                return [null, null, response()->json([
+                    'status'  => 'error',
+                    'message' => 'Kode karcis/kartu tidak ditemukan atau transaksi sudah selesai.'
+                ], 404)];
+            }
+
+            if ($transactions->count() > 1) {
+                return [null, null, response()->json([
+                    'status'  => 'error',
+                    'message' => 'Kode karcis/kartu terhubung ke lebih dari satu transaksi aktif. Gunakan kode yang tepat.'
+                ], 400)];
+            }
+
+            $transaction = $transactions->first();
+            $slot = $transaction->slot;
+
+            if (!$slot || $slot->status === 'violation') {
+                return [null, null, response()->json([
+                    'status'  => 'error',
+                    'message' => 'Slot kendaraan dalam status pelanggaran. Silakan tunggu override dari petugas.'
+                ], 403)];
+            }
+
+            return [$transaction, $slot, null];
+        }
+
+        return [null, null, response()->json([
+            'status'  => 'error',
+            'message' => 'Berikan slot_id atau kode karcis/kartu (card_id).'
+        ], 422)];
+    }
+
+    /**
      * Guest/Customer meminta bantuan petugas untuk tap-out manual
      * (kasus plat tidak terbaca / masuk pakai e-money tanpa plat).
      */
     public function requestManualTapOut(Request $request)
     {
         $request->validate([
-            'slot_id' => 'required|exists:parking_slots,id',
+            'card_id' => 'sometimes|nullable|string',
         ]);
 
-        $slot = ParkingSlot::findOrFail($request->slot_id);
-
-        if ($slot->status === 'violation') {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Slot ini dalam status pelanggaran. Silakan tunggu override dari petugas.'
-            ], 403);
-        }
-
-        $transaction = ParkingTransaction::where('parking_slot_id', $slot->id)
-            ->whereNull('exit_time')
-            ->latest()
-            ->first();
-
-        if (!$transaction) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Tidak ditemukan transaksi aktif di slot ini.'
-            ], 404);
+        [$transaction, $slot, $error] = $this->resolveCredentialTransaction($request);
+        if ($error) {
+            return $error;
         }
 
         Notification::create([
             'type'           => 'manual_tapout_request',
             'title'          => 'Permintaan Tap-Out Manual',
-            'body'           => "Kendaraan di Slot {$slot->slot_code} meminta bantuan petugas untuk tap-out manual (plat tidak terbaca).",
+            'body'           => "Kendaraan dari Slot {$slot->slot_code} meminta bantuan petugas untuk tap-out manual.",
             'to_user_id'     => null, // broadcast ke semua staff
             'transaction_id' => $transaction->id,
         ]);
 
         return response()->json([
-            'status'  => 'success',
-            'message' => 'Permintaan terkirim ke petugas. Mohon tunggu sebentar di lokasi slot Anda.'
+            'status'   => 'success',
+            'message'  => 'Permintaan terkirim ke petugas. Mohon tunggu sebentar di lokasi slot Anda.',
+            'slot_code' => $slot->slot_code,
+            'card_id'  => $transaction->card_id
         ]);
     }
 
