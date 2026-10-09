@@ -68,6 +68,7 @@ class CustomerDashboardController extends Controller
                         'is_active'  => (bool) $customer->member->is_active,
                         'expired_at' => $customer->member->expired_at,
                     ] : null,
+                    'balance'            => $customer->balance ?? 0,
                     'transactions'       => $transactions
                 ]
             ]);

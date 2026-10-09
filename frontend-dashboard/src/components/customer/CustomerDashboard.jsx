@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import CustomerHistory from './CustomerHistory';
 import CustomerParking from './CustomerParking';
-import { User, Car, ShieldCheck, LogOut, RefreshCw, LayoutDashboard, History, Map as MapIcon } from 'lucide-react';
-import { wibDate } from '../../utils/time';
+import TopUpModal from './TopUpModal';
+import { User, Car, ShieldCheck, LogOut, RefreshCw, LayoutDashboard, History, Map as MapIcon, Wallet, Plus } from 'lucide-react';
+import { wibDate, wibDateTime } from '../../utils/time';
+import { formatRupiah } from '../../utils/formatRupiah';
 
 const FONT_STYLE = `@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap');`;
 
@@ -14,6 +16,10 @@ const CustomerDashboard = ({ onLogoutSuccess }) => {
     const [refreshing, setRefreshing] = useState(false);
     const [historyPage, setHistoryPage] = useState(1);
     const [historyLimit, setHistoryLimit] = useState(10);
+    const [showTopUpModal, setShowTopUpModal] = useState(false);
+    const [topUpNotice, setTopUpNotice] = useState(null);
+    const [topupHistory, setTopupHistory] = useState([]);
+    const [topupLoading, setTopupLoading] = useState(false);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -47,8 +53,39 @@ const CustomerDashboard = ({ onLogoutSuccess }) => {
         }
     };
 
+    // 🌟 Fungsi ambil riwayat top-up (dipakai di tab Profil)
+    const fetchTopUpHistory = async () => {
+        const token = localStorage.getItem('customer_token');
+        if (!token) return;
+        setTopupLoading(true);
+        try {
+            const response = await axios.get(`${API_URL}/customer/topup/history?limit=10`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setTopupHistory(response.data.data?.history?.data || []);
+        } catch (err) {
+            console.error("Gagal memuat riwayat top-up:", err);
+        } finally {
+            setTopupLoading(false);
+        }
+    };
+
+    // Callback Top-Up sukses: sinkronkan saldo + riwayat
+    const handleTopUpSuccess = (balance) => {
+        setData((prev) => (prev ? { ...prev, balance } : prev));
+        setTopUpNotice(null);
+        fetchTopUpHistory();
+    };
+
+    // Dipanggil CustomerParking saat tap-out ditolak 403 (saldo kurang)
+    const handleTopUpNeeded = (message) => {
+        setTopUpNotice(message || 'Saldo Anda tidak mencukupi untuk membayar biaya parkir.');
+        setShowTopUpModal(true);
+    };
+
     useEffect(() => {
         fetchDashboardData();
+        fetchTopUpHistory();
 
         // Optional: Setup WebSocket listener for membership status updates here...
     }, [historyPage, historyLimit]);
@@ -109,6 +146,7 @@ const CustomerDashboard = ({ onLogoutSuccess }) => {
                         member={data.member}    /* 👈 Tambahkan ini */
                         plate={data.plate}
                         onTransactionChange={fetchDashboardData} // Lempar fungsi ini agar Child bisa minta Parent refresh
+                        onTopUpNeeded={handleTopUpNeeded} // Buka modal top-up saat tap-out 403 (saldo kurang)
                     />
                 )}
 
@@ -153,6 +191,67 @@ const CustomerDashboard = ({ onLogoutSuccess }) => {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* 💰 KARTU SALDO E-WALLET + RIWAYAT TOP-UP */}
+                            <div className="md:col-span-2 bg-white p-6 rounded-2xl border border-[#E2E6EE] shadow-sm">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+                                    <div>
+                                        <h2 className="text-lg font-bold flex items-center gap-2 text-[#101828]">
+                                            <Wallet size={20} className="text-emerald-600"/> Saldo E-Wallet
+                                        </h2>
+                                        <div className="mt-3 flex items-end gap-3">
+                                            <span className="font-black text-4xl tracking-tight text-[#101828]">
+                                                {formatRupiah(data.balance)}
+                                            </span>
+                                            <span className="text-xs text-[#98A2B3] font-bold uppercase tracking-widest mb-1.5">siap dibayar</span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => { setTopUpNotice(null); setShowTopUpModal(true); }}
+                                        className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20"
+                                    >
+                                        <Plus size={16}/> Top Up Sekarang
+                                    </button>
+                                </div>
+
+                                <div className="border-t border-[#E2E6EE] pt-4">
+                                    <h3 className="text-sm font-bold text-[#475467] mb-3 flex items-center gap-2">
+                                        <History size={16} className="text-[#98A2B3]"/> Riwayat Top-Up
+                                    </h3>
+                                    {topupLoading ? (
+                                        <p className="text-sm text-[#98A2B3]">Memuat riwayat...</p>
+                                    ) : topupHistory.length === 0 ? (
+                                        <p className="text-sm text-[#98A2B3]">Belum ada transaksi top-up.</p>
+                                    ) : (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="text-[11px] text-[#98A2B3] uppercase tracking-widest font-bold border-b border-[#E2E6EE]">
+                                                        <th className="text-left py-2.5 pr-3">Waktu</th>
+                                                        <th className="text-right py-2.5 pr-3">Nominal</th>
+                                                        <th className="text-left py-2.5 pr-3">Metode</th>
+                                                        <th className="text-left py-2.5">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {topupHistory.map((t) => (
+                                                        <tr key={t.id} className="border-b border-[#F3F5F9]">
+                                                            <td className="py-3 pr-3 text-[#475467] font-medium whitespace-nowrap">{wibDateTime(t.created_at)}</td>
+                                                            <td className="py-3 pr-3 text-right font-bold text-[#101828] whitespace-nowrap">{formatRupiah(t.amount)}</td>
+                                                            <td className="py-3 pr-3 capitalize text-[#667085] whitespace-nowrap">{t.payment_method.replace(/_/g, ' ')}</td>
+                                                            <td className="py-3">
+                                                                <span className={`inline-flex px-2.5 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider ${t.status === 'success' ? 'bg-emerald-50 text-emerald-600' : t.status === 'failed' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'}`}>
+                                                                    {t.status}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -169,6 +268,14 @@ const CustomerDashboard = ({ onLogoutSuccess }) => {
                     )}
 
             </div>
+
+            {/* 💰 MODAL TOP-UP SALDO */}
+            <TopUpModal
+                isOpen={showTopUpModal}
+                onClose={() => setShowTopUpModal(false)}
+                onSuccess={handleTopUpSuccess}
+                notice={topUpNotice}
+            />
         </div>
     );
 };

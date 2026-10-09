@@ -13,6 +13,9 @@ const MemberManagement = () => {
     const [isFetching, setIsFetching] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
     const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [page, setPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
+    const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, per_page: 10, total: 0 });
 
     const token = localStorage.getItem('admin_token');
     const headers = {
@@ -25,29 +28,62 @@ const MemberManagement = () => {
         expired_at: ''
     });
 
-    const fetchCustomers = useCallback(async (query = '') => {
+    const fetchCustomers = useCallback(async (query = '', pageNum = 1) => {
         setIsFetching(true);
         try {
             const response = await axios.get(`${API_URL}/admin/members/customers`, { 
                 headers,
-                params: { search: query }
+                params: { search: query, page: pageNum, per_page: perPage }
             });
-            const customerData = response.data?.data?.data || response.data?.data || [];
+            const paginatorData = response.data?.data;
+            const customerData = paginatorData?.data || response.data?.data || [];
             setCustomers(customerData);
+            setPagination({
+                current_page: paginatorData?.current_page ?? pageNum,
+                last_page: paginatorData?.last_page ?? 1,
+                per_page: paginatorData?.per_page ?? perPage,
+                total: paginatorData?.total ?? customerData.length,
+            });
         } catch (err) {
             showMessage('error', 'Gagal mengambil data pelanggan.');
             console.error('Gagal mengambil data:', err);
         } finally {
             setIsFetching(false);
         }
-    }, []);
+    }, [perPage]);
 
     useEffect(() => {
         const delayDebounceFn = setTimeout(() => {
-            fetchCustomers(searchQuery);
+            setPage(1);
+            fetchCustomers(searchQuery, 1);
         }, 500);
         return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery, fetchCustomers]);
+    }, [searchQuery, perPage, fetchCustomers]);
+
+    const goToPage = (p) => {
+        if (p < 1 || p > pagination.last_page || p === pagination.current_page) return;
+        setPage(p);
+        fetchCustomers(searchQuery, p);
+    };
+
+    // Daftar nomor halaman dengan elipsis (…), mis. 1 … 4 [5] 6 … 12
+    const pageList = () => {
+        const last = pagination.last_page;
+        const cur = pagination.current_page;
+        const pages = [];
+        const push = (n) => { if (!pages.includes(n)) pages.push(n); };
+        for (let i = 1; i <= last; i++) {
+            if (i === 1 || i === last || Math.abs(i - cur) <= 2) {
+                push(i);
+            } else if (pages[pages.length - 1] !== '…') {
+                push('…');
+            }
+        }
+        return pages;
+    };
+
+    const startItem = pagination.total === 0 ? 0 : (pagination.current_page - 1) * pagination.per_page + 1;
+    const endItem = Math.min(pagination.current_page * pagination.per_page, pagination.total);
 
     const showMessage = (type, text) => {
         setMessage({ type, text });
@@ -84,7 +120,7 @@ const MemberManagement = () => {
             );
             showMessage('success', response.data.message);
             closeModal();
-            fetchCustomers(searchQuery);
+            fetchCustomers(searchQuery, page);
         } catch (error) {
             console.error(error);
             const errMsg = error.response?.data?.message || 'Terjadi kesalahan pada server.';
@@ -202,6 +238,60 @@ const MemberManagement = () => {
                         </tbody>
                     </table>
                 )}
+            </div>
+
+            {/* Pagination */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-5 pt-4 border-t border-[#E2E6EE]">
+                <div className="flex items-center gap-3 text-xs text-[#667085]">
+                    <span>
+                        Menampilkan <span className="font-semibold text-[#101828]">{startItem}</span>–<span className="font-semibold text-[#101828]">{endItem}</span> dari <span className="font-semibold text-[#101828]">{pagination.total}</span> pelanggan
+                    </span>
+                    <select
+                        value={perPage}
+                        onChange={(e) => setPerPage(Number(e.target.value))}
+                        className="bg-[#F3F5F9] border border-[#E2E6EE] text-[#475467] text-xs font-medium rounded-lg px-2 py-1.5 focus:outline-none focus:border-[#26468A]"
+                    >
+                        <option value={10}>10 / halaman</option>
+                        <option value={25}>25 / halaman</option>
+                        <option value={50}>50 / halaman</option>
+                    </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                    <button
+                        onClick={() => goToPage(pagination.current_page - 1)}
+                        disabled={pagination.current_page <= 1}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[#E2E6EE] bg-white text-[#475467] hover:text-[#26468A] hover:border-[#26468A]/40 transition-colors disabled:opacity-40 disabled:hover:text-[#475467] disabled:cursor-not-allowed"
+                    >
+                        ‹ Sebelumnya
+                    </button>
+
+                    {pageList().map((p, idx) =>
+                        p === '…' ? (
+                            <span key={`ellipsis-${idx}`} className="px-1.5 text-[#98A2B3] text-xs">…</span>
+                        ) : (
+                            <button
+                                key={p}
+                                onClick={() => goToPage(p)}
+                                className={`min-w-[32px] px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                                    p === pagination.current_page
+                                        ? 'bg-[#26468A] text-white shadow-sm'
+                                        : 'bg-white border border-[#E2E6EE] text-[#475467] hover:border-[#26468A]/40 hover:text-[#26468A]'
+                                }`}
+                            >
+                                {p}
+                            </button>
+                        )
+                    )}
+
+                    <button
+                        onClick={() => goToPage(pagination.current_page + 1)}
+                        disabled={pagination.current_page >= pagination.last_page}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[#E2E6EE] bg-white text-[#475467] hover:text-[#26468A] hover:border-[#26468A]/40 transition-colors disabled:opacity-40 disabled:hover:text-[#475467] disabled:cursor-not-allowed"
+                    >
+                        Berikutnya ›
+                    </button>
+                </div>
             </div>
 
             {/* Modal Edit Status */}

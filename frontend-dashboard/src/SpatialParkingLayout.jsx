@@ -149,7 +149,7 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                     className="relative bg-white border-2 border-dashed border-[#C1C9D4] rounded-2xl mx-auto"
                     style={{ width: `${CANVAS_WIDTH_M * SCALE}px`, height: `${CANVAS_HEIGHT_M * SCALE}px`, minWidth: `${CANVAS_WIDTH_M * SCALE}px` }}
                 >
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none z-20" preserveAspectRatio="none">
+                    {/* <svg className="absolute inset-0 w-full h-full pointer-events-none z-20" preserveAspectRatio="none">
                         {selectedSlot && candidates.find(c => c.id === selectedSlot.id)?.path_coords && (
                             <polyline
                                 points={candidates.find(c => c.id === selectedSlot.id)
@@ -158,7 +158,7 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                                 className="animate-pulse" strokeLinecap="round" strokeLinejoin="round"
                             />
                         )}
-                    </svg>
+                    </svg> */}
 
                     <div className="absolute text-[9px] font-bold text-[#98A2B3] uppercase tracking-widest z-10" style={{ left: '2.5%', bottom: `${((11.0 + ROAD_GAP_EXTRA - Y_OFFSET + SLOT_HEIGHT_M + 0.3) / CANVAS_HEIGHT_M) * 100}%` }}>Baris Atas (S1–S21)</div>
                     <div className="absolute text-[9px] font-bold text-[#98A2B3] uppercase tracking-widest z-10" style={{ left: '16%', bottom: `${((5.0 - Y_OFFSET + SLOT_HEIGHT_M + 0.3) / CANVAS_HEIGHT_M) * 100}%` }}>Baris Bawah (S22–S35)</div>

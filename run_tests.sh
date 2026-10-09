@@ -259,7 +259,7 @@ fi
 # ══════════════════════════════════════════════════════════════
 section "AUTH SETUP (auto-seed test users)"
 
-TS_EMAIL_SUFFIX="$(date '+%s%N')@test.com"
+TS_EMAIL_SUFFIX="$(date '+%s%N').$$@test.com"
 ADMIN_TEST_EMAIL="sps_admin_${TS_EMAIL_SUFFIX}"
 STAFF_TEST_EMAIL="sps_staff_${TS_EMAIL_SUFFIX}"
 CUSTOMER_TEST_EMAIL="sps_customer_${TS_EMAIL_SUFFIX}"
@@ -303,7 +303,8 @@ else
 fi
 
 subsection "Register & Login Customer Test"
-RESP=$(api_post "/customer/register" "" "{\"name\":\"SPS Customer Test\",\"email\":\"${CUSTOMER_TEST_EMAIL}\",\"password\":\"${TEST_PASSWORD}\"}")
+CUSTOMER_PLATE="TST-$(date '+%s')-$$"
+RESP=$(api_post "/customer/register" "" "{\"name\":\"SPS Customer Test\",\"email\":\"${CUSTOMER_TEST_EMAIL}\",\"password\":\"${TEST_PASSWORD}\",\"phone_number\":\"08123456789\",\"registered_plate_number\":\"${CUSTOMER_PLATE}\"}")
 BODY=$(get_body "$RESP")
 CUSTOMER_TOKEN=$(get_token "$BODY")
 if [[ -z "$CUSTOMER_TOKEN" ]]; then
@@ -1064,6 +1065,128 @@ else
     skip_test "TC-CUST-01" "Customer dashboard" "no customer token"
     skip_test "TC-CUST-02" "Customer tap-in" "no customer token"
     skip_test "TC-CUST-03" "Customer tap-out" "no customer token"
+fi
+fi
+
+# ══════════════════════════════════════════════════════════════
+# 9b. MODUL SALDO & TOP-UP
+# ══════════════════════════════════════════════════════════════
+if should_run_module "topup"; then
+section "MODUL: SALDO & TOP-UP"
+
+if [[ -n "$CUSTOMER_TOKEN" ]]; then
+    # TC-TOPUP-01: Initiate top-up valid (pending)
+    RESP=$(api_post "/customer/topup/initiate" "$CUSTOMER_TOKEN" '{"amount":100000,"payment_method":"qris"}')
+    STATUS=$(get_status "$RESP")
+    BODY=$(get_body "$RESP")
+    TOPUP_ID=$(json_field "$BODY" "data.topup.id")
+    if [[ "$STATUS" == "200" && -n "$TOPUP_ID" ]]; then
+        pass_test "TC-TOPUP-01" "Initiate top-up valid" "$STATUS"
+    else
+        fail_test "TC-TOPUP-01" "Initiate top-up valid" "200" "$STATUS" "$BODY"
+    fi
+
+    # TC-TOPUP-02: Nominal di bawah minimal → 422
+    RESP=$(api_post "/customer/topup/initiate" "$CUSTOMER_TOKEN" '{"amount":5000,"payment_method":"qris"}')
+    STATUS=$(get_status "$RESP")
+    if [[ "$STATUS" == "422" ]]; then
+        pass_test "TC-TOPUP-02" "Initiate nominal < Rp20.000 ditolak" "$STATUS"
+    else
+        fail_test "TC-TOPUP-02" "Initiate nominal < Rp20.000 ditolak" "422" "$STATUS"
+    fi
+
+    # TC-TOPUP-03: Nominal di atas maksimal → 422
+    RESP=$(api_post "/customer/topup/initiate" "$CUSTOMER_TOKEN" '{"amount":3000000,"payment_method":"qris"}')
+    STATUS=$(get_status "$RESP")
+    if [[ "$STATUS" == "422" ]]; then
+        pass_test "TC-TOPUP-03" "Initiate nominal > Rp2.000.000 ditolak" "$STATUS"
+    else
+        fail_test "TC-TOPUP-03" "Initiate nominal > Rp2.000.000 ditolak" "422" "$STATUS"
+    fi
+
+    # TC-TOPUP-04: Metode pembayaran tidak dikenal → 422
+    RESP=$(api_post "/customer/topup/initiate" "$CUSTOMER_TOKEN" '{"amount":100000,"payment_method":"cash"}')
+    STATUS=$(get_status "$RESP")
+    if [[ "$STATUS" == "422" ]]; then
+        pass_test "TC-TOPUP-04" "Initiate metode invalid ditolak" "$STATUS"
+    else
+        fail_test "TC-TOPUP-04" "Initiate metode invalid ditolak" "422" "$STATUS"
+    fi
+
+    # TC-TOPUP-05: Konfirmasi success → saldo bertambah
+    BALANCE_BEFORE=$(json_field "$(get_body "$(api_get '/customer/topup/balance' "$CUSTOMER_TOKEN")")" "data.balance")
+    if [[ -n "$TOPUP_ID" ]]; then
+        RESP=$(api_post "/customer/topup/$TOPUP_ID/confirm" "$CUSTOMER_TOKEN" '{"status":"success"}')
+        STATUS=$(get_status "$RESP")
+        BODY=$(get_body "$RESP")
+        BALANCE_AFTER=$(json_field "$BODY" "data.balance")
+        if [[ "$STATUS" == "200" && -n "$BALANCE_AFTER" ]]; then
+            pass_test "TC-TOPUP-05" "Confirm sukses → saldo diperbarui" "$STATUS"
+        else
+            fail_test "TC-TOPUP-05" "Confirm sukses → saldo diperbarui" "200" "$STATUS" "$BODY"
+        fi
+    else
+        skip_test "TC-TOPUP-05" "Confirm sukses → saldo diperbarui" "no topup id"
+    fi
+
+    # TC-TOPUP-06: Confirm ulang transaksi yang sama → 422 (idempoten)
+    if [[ -n "$TOPUP_ID" ]]; then
+        RESP=$(api_post "/customer/topup/$TOPUP_ID/confirm" "$CUSTOMER_TOKEN" '{"status":"success"}')
+        STATUS=$(get_status "$RESP")
+        if [[ "$STATUS" == "422" ]]; then
+            pass_test "TC-TOPUP-06" "Confirm ganda ditolak (idempoten)" "$STATUS"
+        else
+            fail_test "TC-TOPUP-06" "Confirm ganda ditolak (idempoten)" "422" "$STATUS"
+        fi
+    else
+        skip_test "TC-TOPUP-06" "Confirm ganda ditolak (idempoten)" "no topup id"
+    fi
+
+    # TC-TOPUP-07: Confirm failed → saldo tidak berubah
+    RESP=$(api_post "/customer/topup/initiate" "$CUSTOMER_TOKEN" '{"amount":50000,"payment_method":"debit_card"}')
+    BODY=$(get_body "$RESP")
+    FAIL_TOPUP_ID=$(json_field "$BODY" "data.topup.id")
+    if [[ -n "$FAIL_TOPUP_ID" ]]; then
+        BAL_BEFORE=$(json_field "$(get_body "$(api_get '/customer/topup/balance' "$CUSTOMER_TOKEN")")" "data.balance")
+        RESP=$(api_post "/customer/topup/$FAIL_TOPUP_ID/confirm" "$CUSTOMER_TOKEN" '{"status":"failed"}')
+        STATUS=$(get_status "$RESP")
+        BAL_AFTER=$(json_field "$(get_body "$(api_get '/customer/topup/balance' "$CUSTOMER_TOKEN")")" "data.balance")
+        if [[ "$STATUS" == "200" && "$BAL_BEFORE" == "$BAL_AFTER" ]]; then
+            pass_test "TC-TOPUP-07" "Confirm gagal → saldo tidak berubah" "$STATUS"
+        else
+            fail_test "TC-TOPUP-07" "Confirm gagal → saldo tidak berubah" "200 & saldo sama" "$STATUS"
+        fi
+    else
+        skip_test "TC-TOPUP-07" "Confirm gagal → saldo tidak berubah" "no topup id"
+    fi
+
+    # TC-TOPUP-08: Riwayat top-up
+    RESP=$(api_get "/customer/topup/history?limit=10" "$CUSTOMER_TOKEN")
+    STATUS=$(get_status "$RESP")
+    if [[ "$STATUS" == "200" ]]; then
+        pass_test "TC-TOPUP-08" "Riwayat top-up" "$STATUS"
+    else
+        fail_test "TC-TOPUP-08" "Riwayat top-up" "200" "$STATUS"
+    fi
+
+    # TC-TOPUP-09: Endpoint saldo
+    RESP=$(api_get "/customer/topup/balance" "$CUSTOMER_TOKEN")
+    STATUS=$(get_status "$RESP")
+    if [[ "$STATUS" == "200" ]]; then
+        pass_test "TC-TOPUP-09" "Endpoint saldo" "$STATUS"
+    else
+        fail_test "TC-TOPUP-09" "Endpoint saldo" "200" "$STATUS"
+    fi
+else
+    skip_test "TC-TOPUP-01" "Initiate top-up valid" "no customer token"
+    skip_test "TC-TOPUP-02" "Initiate nominal < Rp20.000 ditolak" "no customer token"
+    skip_test "TC-TOPUP-03" "Initiate nominal > Rp2.000.000 ditolak" "no customer token"
+    skip_test "TC-TOPUP-04" "Initiate metode invalid ditolak" "no customer token"
+    skip_test "TC-TOPUP-05" "Confirm sukses → saldo diperbarui" "no customer token"
+    skip_test "TC-TOPUP-06" "Confirm ganda ditolak (idempoten)" "no customer token"
+    skip_test "TC-TOPUP-07" "Confirm gagal → saldo tidak berubah" "no customer token"
+    skip_test "TC-TOPUP-08" "Riwayat top-up" "no customer token"
+    skip_test "TC-TOPUP-09" "Endpoint saldo" "no customer token"
 fi
 fi
 

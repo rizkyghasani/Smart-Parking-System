@@ -1,9 +1,9 @@
 # TEST PLAN — Smart Parking System
 
-**Versi** : 1.0
-**Tanggal** : 26 Agustus 2026
+**Versi** : 1.1
+**Tanggal** : 5 Oktober 2026
 **Total Test Case** : 58
-**Coverage** : Backend API (47 endpoints), Frontend (27 komponen), AI Vision (1 endpoint), WebSocket
+**Coverage** : Backend API (51 endpoints), Frontend (27 komponen), AI Vision (1 endpoint), WebSocket, Saldo & Top-Up
 
 ---
 
@@ -1073,7 +1073,216 @@ curl -s http://localhost:8000/api/admin/manual-verifications \
 
 ---
 
-## 9. MODUL AI VISION
+## 9. MODUL SALDO & TOP-UP
+
+### TC-TOPUP-01: Initiate Top-Up Valid
+
+| | |
+|---|---|
+| **Endpoint** | `POST /api/customer/topup/initiate` |
+| **Component** | `TopUpModal.jsx` (`handleInitiate`) |
+| **Priority** | High |
+
+**Steps:**
+1. Login sebagai customer
+2. Buka modal Top-Up (tombol "Top Up Sekarang" di tab Profil)
+3. Isi nominal Rp100.000, metode QRIS, klik "Inisiasi Top-Up"
+
+**Expected Result:**
+- HTTP 200
+- Transaksi dibuat dengan `status: pending`
+- Saldo akun BELUM berubah
+
+---
+
+### TC-TOPUP-02: Initiate Nominal di Bawah Minimal
+
+| | |
+|---|---|
+| **Endpoint** | `POST /api/customer/topup/initiate` |
+| **Priority** | High |
+
+**Steps:** Nominal Rp5.000 (di bawah Rp20.000).
+
+**Expected Result:**
+- HTTP 422 (validation error `min`)
+- Tidak ada transaksi dibuat
+
+---
+
+### TC-TOPUP-03: Initiate Nominal di Atas Maksimal
+
+| | |
+|---|---|
+| **Endpoint** | `POST /api/customer/topup/initiate` |
+| **Priority** | High |
+
+**Steps:** Nominal Rp3.000.000 (di atas Rp2.000.000).
+
+**Expected Result:**
+- HTTP 422 (validation error `max`)
+
+---
+
+### TC-TOPUP-04: Initiate Metode Pembayaran Invalid
+
+| | |
+|---|---|
+| **Endpoint** | `POST /api/customer/topup/initiate` |
+| **Priority** | High |
+
+**Steps:** `payment_method: "cash"` (tidak termasuk `virtual_account|qris|debit_card`).
+
+**Expected Result:**
+- HTTP 422 (validation error `in`)
+
+---
+
+### TC-TOPUP-05: Confirm Top-Up Sukses → Saldo Bertambah
+
+| | |
+|---|---|
+| **Endpoint** | `POST /api/customer/topup/{id}/confirm` |
+| **Component** | `TopUpModal.jsx` (`handleConfirm('success')`) |
+| **Priority** | High |
+
+**Prerequisites:** TC-TOPUP-01 menghasilkan `topup_id` dengan status `pending`.
+
+**Steps:**
+1. Klik "Konfirmasi Berhasil" di langkah simulasi pembayaran
+2. Kembali ke tab Profil / cek endpoint balance
+
+**Expected Result:**
+- HTTP 200
+- `status: success`
+- Saldo bertambah sesuai nominal (mis. 0 → 100.000,00)
+- Riwayat Top-Up menampilkan transaksi `success`
+- Kartu Saldo di dashboard ter-update
+
+---
+
+### TC-TOPUP-06: Confirm Ganda Ditolak (Idempoten)
+
+| | |
+|---|---|
+| **Endpoint** | `POST /api/customer/topup/{id}/confirm` |
+| **Priority** | High |
+
+**Prerequisites:** TC-TOPUP-05 (transaksi sudah `success`).
+
+**Steps:** Kirim confirm sukses lagi untuk id yang sama.
+
+**Expected Result:**
+- HTTP 422: "Transaksi top-up sudah diproses sebelumnya"
+- Saldo TIDAK bertambah dua kali
+
+---
+
+### TC-TOPUP-07: Confirm Gagal → Saldo Tidak Berubah
+
+| | |
+|---|---|
+| **Endpoint** | `POST /api/customer/topup/{id}/confirm` |
+| **Component** | `TopUpModal.jsx` (tombol "Simulasi Gagal") |
+| **Priority** | High |
+
+**Prerequisites:** Transaksi `pending` baru dibuat.
+
+**Steps:** Klik "Simulasi Gagal" → `confirm { status: "failed" }`.
+
+**Expected Result:**
+- HTTP 200, `status: failed`
+- Saldo tetap (tidak bertambah)
+- Riwayat menampilkan `failed`
+
+---
+
+### TC-TOPUP-08: Riwayat Top-Up
+
+| | |
+|---|---|
+| **Endpoint** | `GET /api/customer/topup/history?limit=10` |
+| **Component** | `CustomerDashboard.jsx` (tabel "Riwayat Top-Up") |
+| **Priority** | Medium |
+
+**Steps:** Buka tab Profil → section Riwayat Top-Up.
+
+**Expected Result:**
+- HTTP 200
+- Daftar transaksi top-up terbaru (waktu, nominal, metode, status)
+
+---
+
+### TC-TOPUP-09: Endpoint Saldo
+
+| | |
+|---|---|
+| **Endpoint** | `GET /api/customer/topup/balance` |
+| **Priority** | Medium |
+
+**Expected Result:**
+- HTTP 200, `data.balance` sesuai saldo terkini
+
+---
+
+### TC-TOPUP-10: Tap-Out Non-Member — Saldo Dipotong
+
+| | |
+|---|---|
+| **Endpoint** | `POST /api/parking/tap-out` |
+| **Component** | `ParkingController::tapOut()` |
+| **Priority** | High |
+
+**Prerequisites:** Customer non-member punya saldo ≥ fee, dan transaksi aktif (tap-in via plat terdaftar).
+
+**Steps:** Tap-out normal.
+
+**Expected Result:**
+- HTTP 200
+- `payment_source: "saldo"`, `balance_after` = saldo awal − fee
+- Saldo di database berkurang (dalam `DB::transaction` + `lockForUpdate`)
+
+---
+
+### TC-TOPUP-11: Tap-Out Non-Member — Saldo Kurang → 403 + Rollback
+
+| | |
+|---|---|
+| **Endpoint** | `POST /api/parking/tap-out` |
+| **Component** | `ParkingController::tapOut()` + `InsufficientBalanceException` |
+| **Priority** | High |
+
+**Prerequisites:** Customer non-member saldo 0, ada transaksi aktif.
+
+**Steps:**
+1. Tap-out → HTTP 403 `code: INSUFFICIENT_BALANCE`, `required_amount` & `current_balance`
+2. Frontend `CustomerParking.jsx` membuka `TopUpModal` otomatis (bukan alert)
+3. Top-up nominal minimum → confirm sukses → tap-out lagi
+
+**Expected Result:**
+- HTTP 403 pertama + slot TETAP `occupied` (rollback, transaksi aktif tidak selesai)
+- Saldo tidak pernah negatif
+- Setelah top-up, tap-out kembali HTTP 200 dengan `balance_after` positif
+
+---
+
+### TC-TOPUP-12: Tap-Out Member Tetap Gratis
+
+| | |
+|---|---|
+| **Endpoint** | `POST /api/parking/tap-out` |
+| **Priority** | Medium |
+
+**Prerequisites:** Customer member aktif.
+
+**Steps:** Tap-out normal.
+
+**Expected Result:**
+- HTTP 200, `fee: 0`, `payment_source: "member"`, saldo tidak terpotong
+
+---
+
+## 10. MODUL AI VISION
 
 ### TC-AI-01: Process Frame — Ada Kendaraan
 
@@ -1143,7 +1352,7 @@ curl -s -X POST http://localhost:8001/process-frame \
 
 ---
 
-## 10. MODUL REAL-TIME WEBSOCKET
+## 11. MODUL REAL-TIME WEBSOCKET
 
 ### TC-WS-01: Tap-In → Broadcast SlotUpdated
 
@@ -1198,7 +1407,7 @@ curl -s -X POST http://localhost:8001/process-frame \
 
 ---
 
-## 11. END-TO-END FLOW
+## 12. END-TO-END FLOW
 
 ### E2E-01: Happy Path
 
@@ -1251,7 +1460,7 @@ Tap-In → Plat Tak Terbaca → Staff Verifikasi STNK → Tap-Out
 
 ---
 
-## 12. EDGE CASES & NEGATIVE TESTING
+## 13. EDGE CASES & NEGATIVE TESTING
 
 ### TC-EDGE-01: Tap-In Saat Slot Penuh
 

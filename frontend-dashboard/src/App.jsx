@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import AdminLayout from './components/admin/AdminLayout';
 import LoginAdmin from './components/auth/LoginAdmin';
@@ -6,9 +6,9 @@ import RegisterAdmin from './components/auth/RegisterAdmin';
 import LoginStaff from './components/auth/LoginStaff';
 import StaffLayout from './components/staff/StaffLayout.jsx';
 import CustomerDashboard from './components/customer/CustomerDashboard';
+import OverrideSlotControl from './components/gate/OverrideSlotControl';
 import LoginCustomer from './components/customer/LoginCustomer';
 import RegisterCustomer from './components/customer/RegisterCustomer';
-import SpatialParkingLayout from './SpatialParkingLayout';
 import { echo } from './services/echo.js';
 import { wibTime, wibDateTime } from './utils/time';
 import CameraStream from './components/CameraStream';
@@ -36,7 +36,7 @@ function FontLoader() {
 // =============================================================
 // KOMPONEN MODAL INTEGRASI — Info Tap-In & Kuitansi Tap-Out
 // =============================================================
-function ParkingModal({ modal, onClose }) {
+function ParkingModal({ modal, onClose, onChooseOtherSlot }) {
   if (!modal) return null;
 
   const isTapIn = modal.type === 'tapin';
@@ -79,21 +79,37 @@ function ParkingModal({ modal, onClose }) {
           </div>
         </div>
 
-        <div className="bg-[#F3F5F9] rounded-2xl px-5 py-4 mb-4 border border-[#E2E6EE]">
-          <p className="text-[11px] text-[#667085] font-medium mb-1">Nomor plat</p>
-          <p
-            className="text-[28px] font-bold tracking-wider text-[#101828] text-center"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-          >
-            {modal.plate}
-          </p>
+        {/* 🌟 KOTAK TIKET — Plat & Slot dipasangkan dalam satu kartu,
+            dipisah garis putus-putus (nuansa sobekan tiket fisik).
+            Slot diberi bobot visual lebih besar karena itulah instruksi
+            aksi utama yang harus segera dilakukan pengemudi. */}
+        <div className="bg-[#F3F5F9] rounded-2xl border border-[#E2E6EE] mb-4 grid grid-cols-5 overflow-hidden">
+          <div className="col-span-2 px-4 py-4 flex flex-col justify-center">
+            <p className="text-[10px] text-[#98A2B3] font-semibold uppercase tracking-wide mb-1.5">
+              Nomor plat
+            </p>
+            <p
+              className="text-[17px] font-bold tracking-wider text-[#344054] leading-tight break-all"
+              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            >
+              {modal.plate}
+            </p>
+          </div>
+
+          <div className="col-span-3 relative flex flex-col justify-center px-5 py-4 before:content-[''] before:absolute before:left-0 before:top-3 before:bottom-3 before:border-l before:border-dashed before:border-[#C1C9D4]">
+            <p className={`text-[10px] font-semibold uppercase tracking-wide mb-1.5 flex items-center gap-1 ${accentText}`}>
+              <MapPin size={11} /> {isTapIn ? 'Menuju slot' : 'Slot dikosongkan'}
+            </p>
+            <p
+              className={`text-[38px] font-extrabold tracking-tight leading-none ${accentText}`}
+              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            >
+              {modal.slotCode}
+            </p>
+          </div>
         </div>
 
         <div className="bg-[#F3F5F9] rounded-2xl p-4 mb-4 border border-[#E2E6EE] space-y-2.5 text-sm">
-          <div className="flex justify-between">
-            <span className="text-[#667085]">{isTapIn ? 'Menuju slot' : 'Slot dikosongkan'}</span>
-            <span className={`font-bold ${accentText}`}>{modal.slotCode}</span>
-          </div>
           <div className="flex justify-between">
             <span className="text-[#667085]">{isTapIn ? 'Waktu masuk' : 'Total durasi'}</span>
             <span className="text-[#101828] font-semibold">{isTapIn ? modal.time : modal.duration}</span>
@@ -140,6 +156,15 @@ function ParkingModal({ modal, onClose }) {
         >
           {isTapIn ? 'Oke, menuju slot' : 'Selesai'}
         </button>
+
+        {isTapIn && onChooseOtherSlot && (
+          <button
+            onClick={onChooseOtherSlot}
+            className="w-full mt-2.5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest text-[#C97A1D]/80 hover:text-[#C97A1D] hover:bg-[#C97A1D]/5 transition-all flex items-center justify-center gap-1.5"
+          >
+            <MapPin size={13} /> Pilih Slot Lain
+          </button>
+        )}
       </div>
     </div>
   );
@@ -318,6 +343,9 @@ function App() {
   const [ticketPreview,  setTicketPreview]  = useState(null);
   const [ticketError,    setTicketError]    = useState('');
 
+  const [activeTransaction, setActiveTransaction] = useState(null);
+  const overrideRef = useRef(null);
+
   const streamRef = React.useRef(null);
   const videoRef = React.useRef(null);
 
@@ -471,6 +499,7 @@ function App() {
       const slot = slots.find(s => s.id === data.parking_slot_id) || slots.find(s => s.slot_code === data.allocated_slot);
 
       setSelectedSlot(slot);
+      setActiveTransaction(data.transaction);
 
       setModal({
         type:     'tapin',
@@ -516,6 +545,7 @@ function App() {
         });
 
         setSelectedSlot(null);
+        setActiveTransaction(null);
         setSlots(prevSlots => prevSlots.map(slot =>
           slot.id === slotId ? { ...slot, status: 'available' } : slot
         ));
@@ -579,6 +609,11 @@ function App() {
   };
 
   const closeModal = () => setModal(null);
+
+  const handleChooseOtherSlot = () => {
+    setModal(null);
+    if (overrideRef.current) overrideRef.current.startChoosingMode();
+  };
 
   const StatusPill = () => {
     const map = {
@@ -833,14 +868,16 @@ function App() {
             <h2 className="text-[15px] font-bold text-[#101828]">Peta lokasi slot</h2>
           </div>
           <div className="rounded-2xl overflow-hidden border border-[#E2E6EE]">
-            <SpatialParkingLayout
+            <OverrideSlotControl
+                ref={overrideRef}
                 slots={slots}
                 candidates={candidates}
                 selectedSlot={selectedSlot}
                 setSelectedSlot={setSelectedSlot}
                 handleTapOut={handleTapOut}
-                onRefreshCandidates={fetchSlots}
                 onRequestManualTapOut={handleRequestManualTapOut}
+                activeTransaction={activeTransaction}
+                onRefresh={fetchSlots}
             />
           </div>
         </div>
@@ -859,7 +896,7 @@ return (
         onSelectAdmin={() => setCurrentPage('login')}
       />
 
-      <ParkingModal modal={modal} onClose={closeModal} />
+      <ParkingModal modal={modal} onClose={closeModal} onChooseOtherSlot={handleChooseOtherSlot} />
       <TicketModal
         open={ticketModalOpen}
         onClose={() => { setTicketModalOpen(false); setTicketError(''); }}

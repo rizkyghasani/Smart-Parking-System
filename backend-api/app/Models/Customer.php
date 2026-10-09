@@ -10,6 +10,11 @@ class Customer extends Model
         'user_id',
         'phone_number',
         'registered_plate_number',
+        'balance',
+    ];
+
+    protected $casts = [
+        'balance' => 'decimal:2',
     ];
 
     // Ke Induk
@@ -33,6 +38,12 @@ class Customer extends Model
     public function transactions() 
     {
         return $this->hasMany(ParkingTransaction::class, 'customer_id');
+    }
+
+    // Ke Riwayat Top-Up (1 to Many)
+    public function balanceTopups()
+    {
+        return $this->hasMany(BalanceTopup::class);
     }
 
 }

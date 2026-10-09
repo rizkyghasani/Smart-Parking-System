@@ -8,6 +8,7 @@ use App\Models\ParkingTransaction;
 use App\Models\RevenueConfig;
 use App\Models\Customer;
 use App\Events\SlotUpdated;
+use App\Exceptions\InsufficientBalanceException;
 use App\Models\Notification;
 use Illuminate\Support\Facades\DB;
 use App\Services\DijkstraService; 
@@ -104,7 +105,9 @@ class ParkingController extends Controller
 
     public function tapOut(Request $request)
     {
-        $slot = ParkingSlot::find($request->slot_id);
+        // Cast ke integer: hindari QueryException "invalid input syntax" (SQLSTATE 22P02)
+        // saat slot_id bukan angka (mis. "abc"), sehingga jatuh ke respon 400 normal.
+        $slot = ParkingSlot::find((int) $request->slot_id);
 
         if ($slot && $slot->status === 'violation') {
             return response()->json([
@@ -127,7 +130,8 @@ class ParkingController extends Controller
                 ], 400);
             }
 
-            return DB::transaction(function () use ($slot, $currentConfig, $request) {
+            try {
+                return DB::transaction(function () use ($slot, $currentConfig, $request) {
                 
                 $transaction = ParkingTransaction::where('parking_slot_id', $slot->id)
                     ->whereNull('exit_time')
@@ -189,6 +193,30 @@ class ParkingController extends Controller
                     $totalFee = $durationHours * $currentConfig->rate_per_hour;
                 }
 
+                // 💰 PEMOTONGAN SALDO E-WALLET
+                // Hanya berlaku untuk transaksi NON-MEMBER yang terdaftar (customer_id terisi).
+                // Member: gratis (fee = 0). Guest tanpa akun: dibayar di luar sistem (offline).
+                $balanceAfter  = null;
+                $paymentSource = 'offline';
+
+                if ($isMember) {
+                    $paymentSource = 'member';
+                } elseif ($totalFee > 0 && $transaction->customer_id) {
+                    // Penguncian baris (lockForUpdate) mencegah double-deduct/saldo minus
+                    // saat ada dua permintaan tap-out bersamaan pada customer yang sama.
+                    $lockedCustomer = Customer::whereKey($transaction->customer_id)->lockForUpdate()->first();
+
+                    if ($lockedCustomer) {
+                        if ($lockedCustomer->balance < $totalFee) {
+                            throw new InsufficientBalanceException($totalFee, $lockedCustomer->balance);
+                        }
+
+                        $lockedCustomer->decrement('balance', $totalFee);
+                        $balanceAfter  = $lockedCustomer->balance;
+                        $paymentSource = 'saldo';
+                    }
+                }
+
                 // 4. Update data transaksi
                 $transaction->update([
                     'exit_time'          => $exitTime,
@@ -204,14 +232,19 @@ class ParkingController extends Controller
                 broadcast(new SlotUpdated($slot))->toOthers();
 
                 return response()->json([
-                    'status'       => 'success',
-                    'plate_number' => $transaction->plate_number,
-                    'exit_time'    => Carbon::parse($transaction->exit_time)->toTimeString(),
-                    'duration'     => "{$durationHours} Jam",
-                    'total_fee'    => $totalFee,
-                    'is_member'    => $isMember
+                    'status'        => 'success',
+                    'plate_number'  => $transaction->plate_number,
+                    'exit_time'     => Carbon::parse($transaction->exit_time)->toTimeString(),
+                    'duration'      => "{$durationHours} Jam",
+                    'total_fee'     => $totalFee,
+                    'is_member'     => $isMember,
+                    'payment_source'=> $paymentSource,
+                    'balance_after' => $balanceAfter
                 ]);
-            });
+                });
+            } catch (InsufficientBalanceException $e) {
+                return $e->render();
+            }
         }
 
         return response()->json([

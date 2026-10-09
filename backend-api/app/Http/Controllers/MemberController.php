@@ -18,7 +18,7 @@ class MemberController extends Controller
     public function index(Request $request)
     {
         $search = $request->query('search');
-        $perPage = $request->query('per_page', 10);
+        $perPage = min(max((int) $request->query('per_page', 10), 1), 100);
 
         $customers = Customer::with(['user', 'member'])
             ->when($search, function ($query, $search) {

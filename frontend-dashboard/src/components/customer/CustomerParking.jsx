@@ -14,7 +14,6 @@ function ParkingPopup({ modal, onClose, onChooseOtherSlot }) {
 
     const isTapIn = modal.type === 'tapin';
 
-    // Skema warna disamakan persis dengan App.jsx: emerald untuk tap-in, navy untuk tap-out (kuitansi)
     const accentBg   = isTapIn ? 'bg-emerald-50' : 'bg-[#26468A]/10';
     const accentText = isTapIn ? 'text-emerald-600' : 'text-[#26468A]';
     const accentBtn  = isTapIn
@@ -45,53 +44,85 @@ function ParkingPopup({ modal, onClose, onChooseOtherSlot }) {
                         <Icon size={22} className={accentText} />
                     </div>
                     <div>
-                        <p className="text-xs text-[#667085] uppercase tracking-widest font-bold">
-                            {isTapIn ? 'Sirkulasi Masuk' : 'Transaksi Selesai'}
+                        <p className="text-[13px] text-[#667085] font-medium">
+                            {isTapIn ? 'Sirkulasi masuk' : 'Transaksi selesai'}
                         </p>
-                        <p className="text-lg font-black tracking-tight text-[#101828]">
-                            {isTapIn ? 'Tap-In Berhasil' : 'Kuitansi Tarif Parkir'}
+                        <p className="text-lg font-bold tracking-tight text-[#101828]">
+                            {isTapIn ? 'Tap-in berhasil' : 'Kuitansi parkir'}
                         </p>
                     </div>
                 </div>
 
-                {/* Kotak Plat Nomor (hanya tampil jika ada, tap-in customer mungkin tidak selalu punya plate di modal) */}
-                {modal.plate && (
-                    <div className="bg-[#F3F5F9] rounded-2xl px-5 py-4 mb-4 border border-[#E2E6EE]">
-                        <p className="text-[10px] text-[#667085] uppercase tracking-widest mb-1">Nomor Plat</p>
-                        <p className="text-3xl font-mono font-black tracking-widest text-[#101828] text-center">
-                            {modal.plate}
-                        </p>
+                {/* Kotak Tiket — Plat & Slot dipasangkan, identik App.jsx */}
+                {(modal.plate || modal.slotCode) && (
+                    <div className="bg-[#F3F5F9] rounded-2xl border border-[#E2E6EE] mb-4 grid grid-cols-5 overflow-hidden">
+                        <div className="col-span-2 px-4 py-4 flex flex-col justify-center">
+                            <p className="text-[10px] text-[#98A2B3] font-semibold uppercase tracking-wide mb-1.5">
+                                Nomor plat
+                            </p>
+                            <p
+                                className="text-[17px] font-bold tracking-wider text-[#344054] leading-tight break-all"
+                                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                            >
+                                {modal.plate || '—'}
+                            </p>
+                        </div>
+
+                        <div className="col-span-3 relative flex flex-col justify-center px-5 py-4 before:content-[''] before:absolute before:left-0 before:top-3 before:bottom-3 before:border-l before:border-dashed before:border-[#C1C9D4]">
+                            <p className={`text-[10px] font-semibold uppercase tracking-wide mb-1.5 flex items-center gap-1 ${accentText}`}>
+                                <MapPin size={11} /> {isTapIn ? 'Menuju slot' : 'Slot dikosongkan'}
+                            </p>
+                            <p
+                                className={`text-[38px] font-extrabold tracking-tight leading-none ${accentText}`}
+                                style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                            >
+                                {modal.slotCode}
+                            </p>
+                        </div>
                     </div>
                 )}
 
-                {/* Baris Informasi */}
-                <div className="bg-[#F3F5F9] rounded-2xl p-4 mb-4 border border-[#E2E6EE] space-y-2 text-xs font-medium text-[#475467]">
-                    <div className="flex justify-between">
-                        <span className="text-[#667085]">{isTapIn ? 'Menuju Slot:' : 'Slot Dikosongkan:'}</span>
-                        <span className={`font-black text-sm ${accentText}`}>{modal.slotCode}</span>
-                    </div>
-
+                {/* 🌟 FIX: Baris Informasi sekunder — dikembalikan lagi field
+                    "Waktu masuk" & "Kode karcis" untuk tap-in, identik App.jsx.
+                    Sebelumnya kosong karena salah hapus saat merapikan duplikasi plat. */}
+                <div className="bg-[#F3F5F9] rounded-2xl p-4 mb-4 border border-[#E2E6EE] space-y-2.5 text-sm">
                     {isTapIn ? (
-                    <div className="flex justify-between">
-                        <span className="text-[#667085]">Nomor Plat:</span>
-                        <span className="text-[#101828] font-bold tracking-widest">{modal.plate}</span>
-                    </div>
+                        <>
+                            <div className="flex justify-between">
+                                <span className="text-[#667085]">Waktu masuk</span>
+                                <span className="text-[#101828] font-semibold">{modal.time}</span>
+                            </div>
+                            {modal.cardId && (
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[#667085]">Kode karcis/kartu</span>
+                                    <span className="text-[#101828] font-semibold font-mono text-xs tracking-wider">{modal.cardId}</span>
+                                </div>
+                            )}
+                        </>
                     ) : (
                         <>
                             <div className="flex justify-between">
-                                <span className="text-[#667085]">Waktu Keluar:</span>
-                                <span className="text-[#101828] font-bold">{modal.time}</span>
+                                <span className="text-[#667085]">Waktu keluar</span>
+                                <span className="text-[#101828] font-semibold">{modal.time}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-[#667085]">Total Durasi:</span>
-                                <span className="text-[#101828] font-bold">{modal.duration}</span>
+                                <span className="text-[#667085]">Total durasi</span>
+                                <span className="text-[#101828] font-semibold">{modal.duration}</span>
                             </div>
-                            <div className="border-t border-[#E2E6EE] pt-2 flex justify-between items-center text-sm font-bold mt-1">
-                                <span className="text-[#101828]">Total Biaya:</span>
-                                <span className="text-base font-black text-[#26468A]">
+                            <div className="border-t border-[#E2E6EE] pt-2.5 flex justify-between items-center font-bold">
+                                <span className="text-[#101828]">Total biaya</span>
+                                <span className="text-base text-[#26468A]">
                                     Rp {Number(modal.totalFee || 0).toLocaleString('id-ID')}
                                 </span>
                             </div>
+                            {modal.balanceAfter !== null && modal.balanceAfter !== undefined && (
+                                <div className="flex justify-between items-center text-xs font-medium">
+                                    <span className="text-[#667085]">Sisa saldo</span>
+                                    <span className="text-emerald-600 font-bold">
+                                        Rp {Number(modal.balanceAfter).toLocaleString('id-ID')}
+                                    </span>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>
@@ -99,18 +130,18 @@ function ParkingPopup({ modal, onClose, onChooseOtherSlot }) {
                 {/* CTA Utama */}
                 <button
                     onClick={onClose}
-                    className={`w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-widest text-white transition-all shadow-lg ${accentBtn}`}
+                    className={`w-full py-3.5 rounded-2xl font-bold text-sm text-white transition-colors shadow-lg ${accentBtn}`}
                 >
-                    {isTapIn ? 'Oke, Menuju Slot' : 'Selesai & Tutup'}
+                    {isTapIn ? 'Oke, menuju slot' : 'Selesai & tutup'}
                 </button>
 
-                {/* 🌟 Aksi sekunder — dikecilkan, tidak lagi full-width mencolok seperti sebelumnya */}
-                {isTapIn && (
+                {/* Aksi sekunder */}
+                {isTapIn && onChooseOtherSlot && (
                     <button
                         onClick={onChooseOtherSlot}
                         className="w-full mt-2.5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest text-[#C97A1D]/80 hover:text-[#C97A1D] hover:bg-[#C97A1D]/5 transition-all flex items-center justify-center gap-1.5"
                     >
-                        <MapPin size={13} /> Pilih Slot Lain (Simulasi Pelanggaran)
+                        <MapPin size={13} /> Pilih Slot Lain
                     </button>
                 )}
             </div>
@@ -121,7 +152,7 @@ function ParkingPopup({ modal, onClose, onChooseOtherSlot }) {
 // ==========================================
 // KOMPONEN UTAMA CUSTOMER PARKING
 // ==========================================
-const CustomerParking = ({ activeTransaction, member, plate, onTransactionChange }) => {
+const CustomerParking = ({ activeTransaction, member, plate, onTransactionChange, onTopUpNeeded }) => {
     const [slots, setSlots] = useState([]);
     const [candidates, setCandidates] = useState([]);
     const [selectedSlot, setSelectedSlot] = useState(null);
@@ -202,15 +233,23 @@ const CustomerParking = ({ activeTransaction, member, plate, onTransactionChange
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            const allocatedSlotCode = res.data?.data?.slot?.slot_code || candidates[0]?.slot_code || 'S1';
+            const data = res.data?.data;
+            const allocatedSlotCode = data?.slot?.slot_code || data?.allocated_slot || candidates[0]?.slot_code || 'S1';
 
             if (onTransactionChange) onTransactionChange();
             await fetchParkingData();
 
+            // 🌟 FIX: sertakan time & cardId dari response backend (data.transaction),
+            // sebelumnya cuma type/plate/slotCode sehingga baris Waktu Masuk & Kode
+            // Karcis di ParkingPopup selalu kosong meski JSX-nya sudah benar
             setPopupModal({
                 type: 'tapin',
                 plate: plate,
-                slotCode: allocatedSlotCode
+                slotCode: allocatedSlotCode,
+                time: data?.transaction?.entry_time
+                    ? wibTime(data.transaction.entry_time)
+                    : wibTime(new Date().toISOString()),
+                cardId: data?.transaction?.card_id || null,
             });
 
         } catch (error) {
@@ -237,13 +276,19 @@ const CustomerParking = ({ activeTransaction, member, plate, onTransactionChange
                     slotCode: currentSlot?.slot_code ?? activeTransaction.slot?.slot_code ?? 'Slot',
                     time: res.data.exit_time || wibTime(new Date().toISOString()),
                     duration: res.data.duration || '0 Jam',
-                    totalFee: res.data.total_fee || 0
+                    totalFee: res.data.total_fee || 0,
+                    balanceAfter: res.data.balance_after ?? null
                 });
             }
 
             if (onTransactionChange) onTransactionChange();
             fetchParkingData();
         } catch (error) {
+            // 💰 403 = saldo tidak cukup → arahkan customer ke modal top-up
+            if (error.response?.status === 403 && error.response?.data?.code === 'INSUFFICIENT_BALANCE') {
+                if (onTopUpNeeded) onTopUpNeeded(error.response.data.message);
+                return;
+            }
             alert(error.response?.data?.message || 'Gagal memproses kendaraan keluar.');
         } finally {
             setLoadingAction(false);

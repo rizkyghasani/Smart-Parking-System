@@ -9,6 +9,7 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Customer\AuthCustomerController;
 use App\Http\Controllers\Api\Customer\CustomerDashboardController;
+use App\Http\Controllers\Api\Customer\BalanceTopupController;
 use App\Http\Controllers\Api\Staff\StaffController;
 use App\Http\Controllers\Api\Admin\AdminTransactionController;
 use App\Http\Controllers\Api\Admin\AdminNotificationController;
@@ -144,5 +145,11 @@ Route::prefix('customer')->group(function () {
         Route::get('/dashboard', [CustomerDashboardController::class, 'index']); // ← Rute dashboard yang kita bahas tadi
         Route::post('/tap-in', [CustomerDashboardController::class, 'mobileTapIn']);
         Route::post('/tap-out', [CustomerDashboardController::class, 'mobileTapOut']);
+
+        // 💰 Saldo & Top-Up
+        Route::post('/topup/initiate', [BalanceTopupController::class, 'initiate']);
+        Route::post('/topup/{id}/confirm', [BalanceTopupController::class, 'confirm']);
+        Route::get('/topup/history', [BalanceTopupController::class, 'history']);
+        Route::get('/topup/balance', [BalanceTopupController::class, 'balance']);
     });
 });
