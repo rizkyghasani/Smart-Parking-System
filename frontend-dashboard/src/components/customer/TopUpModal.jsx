@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Wallet, X, CheckCircle, AlertTriangle, Loader2, Banknote, QrCode, CreditCard } from 'lucide-react';
+import { Wallet, X, CheckCircle, AlertTriangle, Loader2, Banknote, QrCode, CreditCard, Copy, Check } from 'lucide-react';
 import { formatRupiah } from '../../utils/formatRupiah';
 
 const MIN_AMOUNT = 20000;
@@ -14,6 +14,22 @@ const PAYMENT_METHODS = [
     { value: 'debit_card', label: 'Kartu Debit', desc: 'Pembayaran kartu', Icon: CreditCard },
 ];
 
+// Bank-style VA prefix per metode — murni kosmetik untuk simulasi
+const VA_BANK_PREFIX = '8808';
+
+// Menghasilkan nomor Virtual Account acak bergaya bank (prefix tetap + 10 digit acak)
+const generateVaNumber = () => {
+    let digits = '';
+    for (let i = 0; i < 10; i++) digits += Math.floor(Math.random() * 10);
+    return `${VA_BANK_PREFIX}${digits}`;
+};
+
+// Menghasilkan kode referensi QRIS acak (dipakai sebagai payload QR simulasi)
+const generateQrisRef = () => {
+    const rand = Math.random().toString(36).slice(2, 10).toUpperCase();
+    return `QRIS-SPS-${rand}`;
+};
+
 const TopUpModal = ({ isOpen, onClose, onSuccess, notice }) => {
     const [step, setStep] = useState('form'); // 'form' | 'pay' | 'result'
     const [amount, setAmount] = useState('');
@@ -23,6 +39,11 @@ const TopUpModal = ({ isOpen, onClose, onSuccess, notice }) => {
     const [error, setError] = useState(null);
     const [result, setResult] = useState(null);
 
+    // Kredensial pembayaran simulasi — dibuat sekali saat masuk step 'pay'
+    const [vaNumber, setVaNumber] = useState('');
+    const [qrisRef, setQrisRef] = useState('');
+    const [copied, setCopied] = useState(false);
+
     useEffect(() => {
         if (isOpen) {
             setStep('form');
@@ -31,6 +52,9 @@ const TopUpModal = ({ isOpen, onClose, onSuccess, notice }) => {
             setTopupId(null);
             setError(null);
             setResult(null);
+            setVaNumber('');
+            setQrisRef('');
+            setCopied(false);
         }
     }, [isOpen]);
 
@@ -67,6 +91,14 @@ const TopUpModal = ({ isOpen, onClose, onSuccess, notice }) => {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setTopupId(res.data.data.topup.id);
+
+            // Terbitkan kredensial pembayaran simulasi sesuai metode yang dipilih
+            if (method === 'virtual_account') {
+                setVaNumber(generateVaNumber());
+            } else if (method === 'qris') {
+                setQrisRef(generateQrisRef());
+            }
+
             setStep('pay');
         } catch (err) {
             setError(err.response?.data?.message || 'Gagal membuat transaksi top-up.');
@@ -94,8 +126,22 @@ const TopUpModal = ({ isOpen, onClose, onSuccess, notice }) => {
         }
     };
 
+    const handleCopyVa = async () => {
+        try {
+            await navigator.clipboard.writeText(vaNumber);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1800);
+        } catch {
+            // Clipboard API bisa gagal di konteks non-https/non-localhost — abaikan secara senyap
+        }
+    };
+
     const inputCls =
         'w-full h-12 px-4 rounded-xl bg-white border border-[#E2E6EE] text-[#101828] font-bold text-lg outline-none focus:border-[#26468A] focus:ring-2 focus:ring-[#26468A]/20 transition-all';
+
+    // Payload yang di-encode ke dalam QR — murni teks simulasi, bukan payload EMVCo sungguhan
+    const qrisPayload = `${qrisRef}|AMOUNT:${numericAmount}|MERCHANT:SmartParkingSystem`;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(qrisPayload)}`;
 
     return (
         <div
@@ -213,10 +259,50 @@ const TopUpModal = ({ isOpen, onClose, onSuccess, notice }) => {
                                     {PAYMENT_METHODS.find((m) => m.value === method)?.label}
                                 </span>
                             </div>
+
+                            {/* ── QRIS: tampilkan QR code ── */}
+                            {method === 'qris' && (
+                                <div className="border-t border-[#E2E6EE] pt-3">
+                                    <div className="flex flex-col items-center bg-white rounded-xl border border-[#E2E6EE] py-4">
+                                        <img
+                                            src={qrImageUrl}
+                                            alt="Kode QRIS pembayaran"
+                                            width={180}
+                                            height={180}
+                                            className="rounded-lg"
+                                        />
+                                        <p className="mt-3 text-[11px] text-[#98A2B3] font-mono tracking-wider">{qrisRef}</p>
+                                        <p className="mt-1 text-[11px] text-[#667085] font-medium">Scan dengan aplikasi e-wallet/mobile banking</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* ── Virtual Account: tampilkan nomor VA + tombol salin ── */}
+                            {method === 'virtual_account' && (
+                                <div className="border-t border-[#E2E6EE] pt-3">
+                                    <p className="text-[11px] text-[#667085] font-bold uppercase tracking-widest mb-1.5">Nomor Virtual Account</p>
+                                    <div className="flex items-center gap-2 bg-white border border-[#E2E6EE] rounded-xl px-3 py-2.5">
+                                        <span className="flex-1 font-mono font-bold text-[15px] tracking-wider text-[#101828]">
+                                            {vaNumber}
+                                        </span>
+                                        <button
+                                            onClick={handleCopyVa}
+                                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#F3F5F9] hover:bg-[#E2E6EE] text-[#475467] text-[11px] font-bold transition-colors"
+                                        >
+                                            {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                                            {copied ? 'Tersalin' : 'Salin'}
+                                        </button>
+                                    </div>
+                                    <p className="mt-1.5 text-[11px] text-[#667085] font-medium">Transfer tepat sejumlah nominal di atas melalui ATM/mobile banking</p>
+                                </div>
+                            )}
+
                             <div className="border-t border-[#E2E6EE] pt-3 bg-[#26468A]/5 rounded-xl px-3 py-2.5">
-                                <p className="text-[11px] text-[#26468A] font-bold uppercase tracking-widest mb-1">Simulasi pembayaran</p>
+                                <p className="text-[11px] text-[#FF0F0F] font-bold uppercase tracking-widest mb-1">Simulasi pembayaran</p>
                                 <p className="text-[11px] text-[#667085] font-medium leading-relaxed">
-                                    Dalam sistem riil, kode pembayaran akan ditampilkan di sini (VA/QRIS). Untuk skripsi, pilih status pembayaran.
+                                    {method === 'debit_card'
+                                        ? 'Dalam sistem riil, pembayaran diproses langsung oleh mesin EDC/payment gateway. Hal ini dilakukan hanya untuk keperluan skripsi.'
+                                        : 'Kode di atas dibuat secara acak untuk keperluan simulasi, bukan terhubung ke payment gateway sungguhan. Hal ini dilakukan hanya untuk keperluan skripsi'}
                                 </p>
                             </div>
                         </div>

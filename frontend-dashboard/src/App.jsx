@@ -9,6 +9,7 @@ import CustomerDashboard from './components/customer/CustomerDashboard';
 import OverrideSlotControl from './components/gate/OverrideSlotControl';
 import LoginCustomer from './components/customer/LoginCustomer';
 import RegisterCustomer from './components/customer/RegisterCustomer';
+import GateSimulation from './GateSimulation';
 import { echo } from './services/echo.js';
 import { wibTime, wibDateTime } from './utils/time';
 import CameraStream from './components/CameraStream';
@@ -351,6 +352,8 @@ function App() {
 
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
+  const [gateSim, setGateSim] = useState({ open: false, mode: 'in' });
+
   useEffect(() => {
         const adminToken = localStorage.getItem('admin_token');
         const staffToken = localStorage.getItem('staff_token');
@@ -496,6 +499,8 @@ function App() {
       const res  = await axios.post(`${API_URL}/parking/tap-in`, { plate_number: plate, no_plate: noPlate });
       const data = res.data.data;
 
+      setGateSim({ open: true, mode: 'in' });
+
       const slot = slots.find(s => s.id === data.parking_slot_id) || slots.find(s => s.slot_code === data.allocated_slot);
 
       setSelectedSlot(slot);
@@ -533,6 +538,8 @@ function App() {
 
       if (response.data.status === 'success') {
         const currentSlot = slots.find(s => s.id === slotId);
+
+        setGateSim({ open: true, mode: 'out' });
 
         setModal({
           type:      'tapout',
@@ -895,6 +902,14 @@ return (
         onSelectCustomer={() => setCurrentPage('customer_login')}
         onSelectAdmin={() => setCurrentPage('login')}
       />
+
+      {/* <GateSimulation
+        isOpen={gateSim.open}
+        mode={gateSim.mode}
+        plateNumber={modal?.plate}
+        slotCode={modal?.slotCode}
+        onComplete={() => setGateSim((s) => ({ ...s, open: false }))}
+      /> */}
 
       <ParkingModal modal={modal} onClose={closeModal} onChooseOtherSlot={handleChooseOtherSlot} />
       <TicketModal
