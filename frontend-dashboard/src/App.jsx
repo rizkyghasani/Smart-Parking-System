@@ -872,7 +872,7 @@ function App() {
         <div className="bg-white rounded-3xl border border-[#E2E6EE] shadow-sm shadow-black/[0.02] p-6">
           <div className="flex items-center gap-2 mb-5">
             <MapPin size={16} className="text-[#26468A]" />
-            <h2 className="text-[15px] font-bold text-[#101828]">Peta lokasi slot testing</h2>
+            <h2 className="text-[15px] font-bold text-[#101828]">Peta lokasi slot</h2>
           </div>
           <div className="rounded-2xl overflow-hidden border border-[#E2E6EE]">
             <OverrideSlotControl
