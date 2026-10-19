@@ -12,6 +12,10 @@ import os
 import requests
 import logging
 
+# Workaround: oneDNN/mkldnn gagal di CPU VPS ("could not create a primitive")
+import torch
+torch.backends.mkldnn.enabled = False
+
 # 1. SETUP LOGGING & APP
 logging.getLogger("ppocr").setLevel(logging.ERROR)
 app = FastAPI()
