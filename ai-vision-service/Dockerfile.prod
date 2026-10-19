@@ -19,11 +19,11 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Torch CPU-only dari index resmi PyTorch (tanpa dependensi CUDA).
-# Jika versi di bawah tidak tersedia di index CPU, sesuaikan ke versi
-# CPU terdekat yang kompatibel (torch & torchvision harus berpasangan).
+# Pakai --extra-index-url (bukan --index-url) agar PyPI tetap jadi sumber
+# dependensi lain; pin "+cpu" agar wheel CUDA dari PyPI tidak terpilih.
 RUN pip install --no-cache-dir --timeout=120 --retries=5 \
-    --index-url https://download.pytorch.org/whl/cpu \
-    torch==2.10.0 torchvision==0.25.0
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    torch==2.10.0+cpu torchvision==0.25.0+cpu
 
 RUN pip install --no-cache-dir --timeout=120 --retries=5 -r requirements.txt
 

@@ -51,6 +51,10 @@ services:
     restart: always
     env_file:
       - ./.env.production
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_HOST: redis
     depends_on:
       - backend
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
