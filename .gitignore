@@ -7,3 +7,10 @@ ai-vision-service/__pycache__/
 # Mac/OS
 .DS_Store
 Thumbs.db
+
+# Rahasia environment produksi (jangan dikomit)
+.env
+.env.production
+.env.production.*
+!.env.production.example
+!.env.example

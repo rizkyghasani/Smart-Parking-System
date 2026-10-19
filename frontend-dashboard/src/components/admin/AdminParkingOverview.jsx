@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { RefreshCcw, Eye } from 'lucide-react';
 import SpatialParkingLayout from '../../SpatialParkingLayout';
-
-const API_URL = 'http://localhost:8000/api';
+import { API_URL } from '../../config';
 
 const AdminParkingOverview = () => {
     const [slots, setSlots] = useState([]);

@@ -13,6 +13,7 @@ import AdminManualTapOutHistory from './AdminManualTapOutHistory';
 import AdminNotificationPage from './AdminNotificationPage';
 import AdminParkingOverview from './AdminParkingOverview';
 import AdminRevenueReport from './AdminRevenueReport';
+import { API_URL } from '../../config';
 import {
     Wallet,
     UserCog,
@@ -105,7 +106,6 @@ const AdminLayout = ({ onLogoutSuccess }) => {
 
     const adminUser = JSON.parse(localStorage.getItem('admin_user') || '{}');
     const token = localStorage.getItem('admin_token');
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
     useEffect(() => {
         if (activeTab === 'dashboard') {
@@ -116,7 +116,7 @@ const AdminLayout = ({ onLogoutSuccess }) => {
     const fetchDashboardStats = async () => {
         setLoadingStats(true);
         try {
-            const res = await axios.get('http://localhost:8000/api/admin/dashboard-stats', {
+            const res = await axios.get(`${API_URL}/admin/dashboard-stats`, {
                 headers: { Authorization: `Bearer ${token}` },
                 params: { filter: timeFilter },
             });
@@ -153,7 +153,7 @@ const AdminLayout = ({ onLogoutSuccess }) => {
     const handleLogout = async () => {
         setIsLoggingOut(true);
         try {
-            await axios.post('http://localhost:8000/api/admin/auth/logout', {}, {
+            await axios.post(`${API_URL}/admin/auth/logout`, {}, {
                 headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
             });
         } catch (error) {

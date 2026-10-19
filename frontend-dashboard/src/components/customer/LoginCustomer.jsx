@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Car, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import AuthLayout, { CUSTOMER_ACCENT } from '../auth/AuthLayout';
+import { API_URL } from '../../config';
 
 const LoginCustomer = ({ onLoginSuccess, onNavigateToRegister, onBack }) => {
     const [email, setEmail] = useState('');
@@ -15,7 +16,7 @@ const LoginCustomer = ({ onLoginSuccess, onNavigateToRegister, onBack }) => {
         setError('');
         setIsLoading(true);
         try {
-            const res = await axios.post('http://localhost:8000/api/customer/login', { email, password });
+            const res = await axios.post(`${API_URL}/customer/login`, { email, password });
             localStorage.setItem('customer_token', res.data.token);
             onLoginSuccess();
         } catch (err) {

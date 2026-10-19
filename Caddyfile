@@ -1,0 +1,36 @@
+# =====================================================================
+# Caddy reverse proxy + HTTPS otomatis (Let's Encrypt).
+# Nama domain diambil dari env DOMAIN (.env.production).
+# =====================================================================
+
+{$DOMAIN} {
+	encode gzip
+
+	# Laravel API — path /api/... dipertahankan apa adanya.
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	# Laravel Reverb (WebSocket) — browser terhubung ke /app/*
+	handle /app/* {
+		reverse_proxy reverb:8080
+	}
+	handle /apps/* {
+		reverse_proxy reverb:8080
+	}
+
+	# AI Vision (FastAPI) — /ai/process-frame -> ai_service:8001/process-frame
+	# handle_path menghapus prefix /ai.
+	handle_path /ai/* {
+		reverse_proxy ai_service:8001
+	}
+
+	# Frontend SPA statis (nginx)
+	handle {
+		reverse_proxy frontend:80
+	}
+
+	log {
+		output file /data/access.log
+	}
+}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { ShieldCheck } from 'lucide-react';
 import AuthLayout, { ADMIN_ACCENT } from './AuthLayout';
+import { API_URL } from '../../config';
 
 const LoginAdmin = ({ onLoginSuccess, onNavigateToRegister, onBackToUser }) => {
     const [email, setEmail] = useState('');
@@ -33,7 +34,7 @@ const LoginAdmin = ({ onLoginSuccess, onNavigateToRegister, onBackToUser }) => {
 
     // Pasang Axios dengan kredensial agar kuki session/remember me bisa disimpan browser
     try {
-        const response = await axios.post('http://localhost:8000/api/admin/auth/login', formData, {
+        const response = await axios.post(`${API_URL}/admin/auth/login`, formData, {
             withCredentials: true
         });
 

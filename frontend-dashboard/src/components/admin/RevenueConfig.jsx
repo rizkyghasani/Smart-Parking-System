@@ -5,6 +5,7 @@ import {
     CheckCircle2, AlertTriangle, Loader2, ArrowRight,
 } from 'lucide-react';
 import { wibDate } from '../../utils/time';
+import { API_URL } from '../../config';
 
 const RevenueConfig = () => {
     const [ratePerHour, setRatePerHour] = useState('');
@@ -29,8 +30,8 @@ const RevenueConfig = () => {
             const headers = { Authorization: `Bearer ${token}` };
             
             const [latestRes, historyRes] = await Promise.all([
-                axios.get('http://localhost:8000/api/admin/revenue-config/latest', { headers }),
-                axios.get('http://localhost:8000/api/admin/revenue-config', { headers })
+                axios.get(`${API_URL}/admin/revenue-config/latest`, { headers }),
+                axios.get(`${API_URL}/admin/revenue-config`, { headers })
             ]);
 
             if (latestRes.data.data) {
@@ -57,7 +58,7 @@ const RevenueConfig = () => {
         formData.append('effective_from', effectiveFrom);
 
         try {
-            await axios.post('http://localhost:8000/api/admin/revenue-config', formData, {
+            await axios.post(`${API_URL}/admin/revenue-config`, formData, {
                 headers: { 
                     Authorization: `Bearer ${token}`,
                     'Accept': 'application/json'

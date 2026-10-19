@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { normalizePlate } from '../../utils/plate';
+import { AI_SERVICE_URL } from '../../config';
 import { X, Scan, CheckCircle, AlertTriangle, RefreshCcw, ShieldCheck, FlaskConical, CameraOff } from 'lucide-react';
 
-const AI_URL = 'http://localhost:8001';
+const AI_URL = AI_SERVICE_URL;
 const INTERVAL = 3000;
 const NO_DETECT_TIMEOUT = 15000;
 const VERIFY_DELAY = 900;

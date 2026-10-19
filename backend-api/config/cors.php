@@ -18,14 +18,19 @@ return [
     // Izinkan semua metode (GET, POST, PUT, DELETE)
     'allowed_methods' => ['*'],
 
-    // Izinkan akses dari Port Frontend (React)
-    'allowed_origins' => [
-        'http://localhost:5173',
-        'http://localhost:5174',
-        'http://localhost:5175',
-        'http://127.0.0.1:5173',
-        'http://localhost:3000', // Cadangan jika pakai port lain
-    ],
+    // Origin development selalu diizinkan; origin produksi ditambahkan
+    // lewat env CORS_ALLOWED_ORIGINS (dipisah koma), contoh:
+    // CORS_ALLOWED_ORIGINS=https://dijkstraparking.my.id
+    'allowed_origins' => array_values(array_filter(array_merge(
+        [
+            'http://localhost:5173',
+            'http://localhost:5174',
+            'http://localhost:5175',
+            'http://127.0.0.1:5173',
+            'http://localhost:3000', // Cadangan jika pakai port lain
+        ],
+        array_map('trim', explode(',', env('CORS_ALLOWED_ORIGINS', '')))
+    ))),
 
     'allowed_origins_patterns' => [],
 

@@ -4,6 +4,7 @@ import {
     Waypoints, ParkingSquare, DoorOpen, Plus, Pencil, Trash2, X,
     CheckCircle2, AlertTriangle, Wrench, Car, Loader2,
 } from 'lucide-react';
+import { API_URL } from '../../config';
 
 const SlotControl = () => {
     const [slots, setSlots] = useState([]);
@@ -38,7 +39,7 @@ const SlotControl = () => {
     const token = localStorage.getItem('admin_token');
 
     const api = axios.create({
-        baseURL: 'http://localhost:8000/api/admin',
+        baseURL: `${API_URL}/admin`,
         headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
     });
 

@@ -1,0 +1,117 @@
+# =====================================================================
+# Docker Compose PRODUKSI
+# Jalankan dari root repo:
+#   docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+#
+# Catatan:
+# - File dev (docker-compose.yml) TIDAK terpengaruh.
+# - Hanya Caddy yang membuka port publik (80/443). db/redis/backend/
+#   reverb/ai_service/frontend hanya bisa diakses di jaringan internal.
+# - UFW tidak memfilter port yang di-publish Docker, jadi jangan tambahkan
+#   "ports:" pada service selain Caddy.
+# =====================================================================
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - parking_net
+
+  redis:
+    image: redis:alpine
+    restart: always
+    networks:
+      - parking_net
+
+  backend:
+    build: ./backend-api
+    restart: always
+    env_file:
+      - ./.env.production
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      REDIS_HOST: redis
+    depends_on:
+      - db
+      - redis
+    command: php artisan serve --host=0.0.0.0 --port=8000
+    networks:
+      - parking_net
+
+  reverb:
+    build: ./backend-api
+    restart: always
+    env_file:
+      - ./.env.production
+    depends_on:
+      - backend
+    command: php artisan reverb:start --host=0.0.0.0 --port=8080
+    networks:
+      - parking_net
+
+  ai_service:
+    build:
+      context: ./ai-vision-service
+      dockerfile: Dockerfile.prod
+    restart: always
+    environment:
+      LARAVEL_API_URL: http://backend:8000/api/parking/validate
+    volumes:
+      - easyocr_cache:/root/.EasyOCR
+    depends_on:
+      - backend
+    networks:
+      - parking_net
+
+  frontend:
+    build:
+      context: ./frontend-dashboard
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+        VITE_AI_SERVICE_URL: ${VITE_AI_SERVICE_URL}
+        VITE_REVERB_APP_KEY: ${VITE_REVERB_APP_KEY}
+        VITE_REVERB_HOST: ${VITE_REVERB_HOST}
+        VITE_REVERB_PORT: ${VITE_REVERB_PORT}
+        VITE_REVERB_SCHEME: ${VITE_REVERB_SCHEME}
+    restart: always
+    networks:
+      - parking_net
+
+  caddy:
+    image: caddy:alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file:
+      - ./.env.production
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - reverb
+      - ai_service
+      - frontend
+    networks:
+      - parking_net
+
+volumes:
+  db_data:
+  easyocr_cache:
+  caddy_data:
+  caddy_config:
+
+networks:
+  parking_net:
+    driver: bridge

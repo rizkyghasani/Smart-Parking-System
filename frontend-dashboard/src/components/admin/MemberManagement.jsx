@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Edit2, ShieldCheck, ShieldAlert, X, User, Car } from 'lucide-react';
 import axios from 'axios';
 import { wibDate } from '../../utils/time';
-
-const API_URL = 'http://localhost:8000/api';
+import { API_URL } from '../../config';
 
 const MemberManagement = () => {
     const [customers, setCustomers] = useState([]);

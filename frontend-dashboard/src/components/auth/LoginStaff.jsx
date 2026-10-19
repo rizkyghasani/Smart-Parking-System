@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { HardHat } from 'lucide-react';
 import AuthLayout, { STAFF_ACCENT } from './AuthLayout';
+import { API_URL } from '../../config';
 
 const LoginStaff = ({ onLoginSuccess, onBackToMain }) => {
     const [email, setEmail] = useState('');
@@ -30,7 +31,7 @@ const LoginStaff = ({ onLoginSuccess, onBackToMain }) => {
 
         try {
             // Menembak endpoint login yang sama di backend
-            const response = await axios.post('http://localhost:8000/api/admin/auth/login', formData);
+            const response = await axios.post(`${API_URL}/admin/auth/login`, formData);
 
             if (response.data.success) {
                 const userRole = response.data.data.user.role;

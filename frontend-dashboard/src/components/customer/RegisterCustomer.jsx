@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { Mail, Lock, Eye, EyeOff, User, Phone, Car, AlertCircle, CheckCircle } from 'lucide-react';
 import AuthLayout, { CUSTOMER_ACCENT } from '../auth/AuthLayout';
+import { API_URL } from '../../config';
 
 const RegisterCustomer = ({ onRegisterSuccess, onNavigateToLogin, onBack }) => {
     const [formData, setFormData] = useState({
@@ -41,7 +42,7 @@ const RegisterCustomer = ({ onRegisterSuccess, onNavigateToLogin, onBack }) => {
 
         setIsLoading(true);
         try {
-            await axios.post('http://localhost:8000/api/customer/register', {
+            await axios.post(`${API_URL}/customer/register`, {
                 name: formData.name,
                 email: formData.email,
                 password: formData.password,

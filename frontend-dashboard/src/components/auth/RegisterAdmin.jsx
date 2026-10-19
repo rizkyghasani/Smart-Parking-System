@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { UserPlus } from 'lucide-react';
 import AuthLayout, { ADMIN_ACCENT } from './AuthLayout';
+import { API_URL } from '../../config';
 
 const RegisterAdmin = ({ onRegisterSuccess, onNavigateToLogin }) => {
     // State input form registrasi
@@ -20,7 +21,7 @@ const RegisterAdmin = ({ onRegisterSuccess, onNavigateToLogin }) => {
 
         try {
             // Menembak endpoint POST /api/admin/auth/register sesuai file routes/api.php
-                const response = await axios.post('http://localhost:8000/api/admin/auth/register', {
+                const response = await axios.post(`${API_URL}/admin/auth/register`, {
                     name,
                     email,
                     password

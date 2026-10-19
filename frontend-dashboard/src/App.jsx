@@ -11,6 +11,7 @@ import LoginCustomer from './components/customer/LoginCustomer';
 import RegisterCustomer from './components/customer/RegisterCustomer';
 import GateSimulation from './GateSimulation';
 import { echo } from './services/echo.js';
+import { API_URL, AI_SERVICE_URL } from './config';
 import { wibTime, wibDateTime } from './utils/time';
 import CameraStream from './components/CameraStream';
 import {
@@ -18,8 +19,7 @@ import {
   Camera, CameraOff, HardHat, UserRound, ShieldCheck, TriangleAlert, MapPin, Ticket, LifeBuoy,
 } from 'lucide-react';
 
-const AI_URL   = 'http://localhost:8001';
-const API_URL  = 'http://localhost:8000/api';
+const AI_URL   = AI_SERVICE_URL;
 const INTERVAL = 3000;
 
 // =============================================================

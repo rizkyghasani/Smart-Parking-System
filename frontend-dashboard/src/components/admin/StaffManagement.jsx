@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL } from '../../config';
 
 const StaffManagement = () => {
     const [staffs, setStaffs] = useState([]);
@@ -26,7 +27,7 @@ const StaffManagement = () => {
     const fetchStaffs = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost:8000/api/admin/staff', { headers });
+            const res = await axios.get(`${API_URL}/admin/staff`, { headers });
             setStaffs(res.data.data);
         } catch {
             setStaffs([
@@ -47,7 +48,7 @@ const StaffManagement = () => {
         formData.append('email', email);
         formData.append('password', password);
         try {
-            await axios.post('http://localhost:8000/api/admin/staff', formData, { headers });
+            await axios.post(`${API_URL}/admin/staff`, formData, { headers });
             setMessage({ type: 'success', text: 'Petugas lapangan baru sukses didaftarkan!' });
             setName(''); setEmail(''); setPassword('');
             fetchStaffs();
@@ -85,7 +86,7 @@ const StaffManagement = () => {
         setConfirmError('');
         try {
             const res = await axios.patch(
-                `http://localhost:8000/api/admin/staff/${confirmModal.staffId}/toggle-status`,
+                `${API_URL}/admin/staff/${confirmModal.staffId}/toggle-status`,
                 { admin_password: confirmPassword },
                 { headers }
             );
