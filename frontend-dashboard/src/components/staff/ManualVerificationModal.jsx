@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { X, FileText, Car, User, Palette, CheckCircle, AlertTriangle, Receipt } from 'lucide-react';
+import { API_URL } from '../../config';
 
 // =============================================================
 // 🌟 KOMPONEN: Pop-up hasil (menggantikan alert() bawaan browser)
@@ -89,8 +90,7 @@ const ManualVerificationModal = ({ isOpen, onClose, targetTransactionId, onSucce
     // 🌟 State untuk pop-up hasil (menggantikan alert())
     const [result, setResult] = useState(null); // null | { type: 'success'|'error', ...data }
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const token = localStorage.getItem('staff_token');
+    const token = sessionStorage.getItem('staff_token');
 
     const axiosInstance = axios.create({
         baseURL: API_URL,

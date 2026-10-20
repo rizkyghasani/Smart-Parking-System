@@ -2,10 +2,10 @@ import React from 'react';
 import axios from 'axios';
 import { X, AlertTriangle, CheckCircle, Info, ArrowRightLeft, Clock, CheckCheck, FileText, Bell } from 'lucide-react';
 import { wibTime } from '../../utils/time';
+import { API_URL } from '../../config';
 
 const NotificationCenter = ({ isOpen, onClose, notifications, refreshData, onNavigateToMonitor, onOpenManualVerification }) => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const token = localStorage.getItem('staff_token');
+    const token = sessionStorage.getItem('staff_token');
 
     const unreadCount = notifications.filter(n => n.read_at === null).length;
 

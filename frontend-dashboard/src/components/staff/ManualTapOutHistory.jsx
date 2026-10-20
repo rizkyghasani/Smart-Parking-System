@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ClipboardList, Car, User, Calendar, FileText, Clock, Palette } from 'lucide-react';
 import { wibDate, wibTime } from '../../utils/time';
+import { API_URL } from '../../config';
 
 const ManualTapOutHistory = () => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const token = localStorage.getItem('staff_token');
+    const token = sessionStorage.getItem('staff_token');
 
     const axiosInstance = axios.create({
         baseURL: API_URL,

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { wibDate } from '../../utils/time';
 import { API_URL } from '../../config';
 
+
 const MemberManagement = () => {
     const [customers, setCustomers] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -16,7 +17,7 @@ const MemberManagement = () => {
     const [perPage, setPerPage] = useState(10);
     const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, per_page: 10, total: 0 });
 
-    const token = localStorage.getItem('admin_token');
+    const token = sessionStorage.getItem('admin_token');
     const headers = {
         Authorization: `Bearer ${token}`,
         'Accept': 'application/json'
@@ -169,6 +170,7 @@ const MemberManagement = () => {
                         Mencari data pelanggan...
                     </div>
                 ) : (
+                    <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
                         <thead className="bg-[#F3F5F9] text-[#667085] border-b border-[#E2E6EE] text-xs font-semibold uppercase tracking-wide">
                             <tr>
@@ -236,6 +238,7 @@ const MemberManagement = () => {
                             )}
                         </tbody>
                     </table>
+                    </div>
                 )}
             </div>
 

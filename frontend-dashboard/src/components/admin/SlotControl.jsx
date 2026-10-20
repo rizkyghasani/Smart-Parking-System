@@ -36,7 +36,7 @@ const SlotControl = () => {
     const [editMode, setEditMode] = useState(false);
     const [selectedSlotId, setSelectedSlotId] = useState(null);
 
-    const token = localStorage.getItem('admin_token');
+    const token = sessionStorage.getItem('admin_token');
 
     const api = axios.create({
         baseURL: `${API_URL}/admin`,

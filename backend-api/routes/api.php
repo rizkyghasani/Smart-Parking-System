@@ -31,6 +31,14 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+Route::get('/auth/me', function (Request $request) {
+    $u = $request->user();
+    return response()->json([
+        'success' => true,
+        'data' => ['id' => $u->id, 'name' => $u->name, 'role' => $u->role],
+    ]);
+})->middleware('auth:sanctum');
+
 /**
  * SMART PARKING SYSTEM ROUTES
  * Semua rute di dalam grup ini akan diawali dengan /api/parking/

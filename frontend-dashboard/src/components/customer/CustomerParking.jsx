@@ -5,6 +5,7 @@ import CustomerPlateVerificationModal from "./CustomerPlateVerificationModal";
 import { LogIn, LogOut, Map, Car, MapPin, AlertTriangle, Clock, CheckCircle, Receipt, X } from 'lucide-react';
 import { echo } from '../../services/echo';
 import { wibTime } from '../../utils/time';
+import { API_URL } from '../../config';
 
 // ==========================================
 // KOMPONEN POP-UP / MODAL — Selaras dengan ParkingModal di App.jsx
@@ -165,8 +166,7 @@ const CustomerParking = ({ activeTransaction, member, plate, onTransactionChange
     const [allocatedSlotId, setAllocatedSlotId] = useState(null);
     const [showVerifyModal, setShowVerifyModal] = useState(false);
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const token = localStorage.getItem('token') || localStorage.getItem('customer_token');
+    const token = sessionStorage.getItem('token') || sessionStorage.getItem('customer_token');
 
     const fetchParkingData = async () => {
         try {

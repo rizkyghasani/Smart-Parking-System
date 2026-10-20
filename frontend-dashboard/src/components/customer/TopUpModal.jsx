@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Wallet, X, CheckCircle, AlertTriangle, Loader2, Banknote, QrCode, CreditCard, Copy, Check } from 'lucide-react';
 import { formatRupiah } from '../../utils/formatRupiah';
+import { API_URL } from '../../config';
 
 const MIN_AMOUNT = 20000;
 const MAX_AMOUNT = 2000000;
@@ -71,8 +72,7 @@ const TopUpModal = ({ isOpen, onClose, onSuccess, notice }) => {
         return true;
     };
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const token = localStorage.getItem('customer_token');
+    const token = sessionStorage.getItem('customer_token');
 
     const handlePreset = (value) => {
         setAmount(String(value));

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { History, Search, ChevronDown, ChevronLeft, ChevronRight, Clock, MapPin, Car, RefreshCw, X, CreditCard, AlertTriangle, ShieldCheck, FileText } from 'lucide-react';
 import { wibDateTime } from '../../utils/time';
+import { API_URL } from '../../config';
 
 const AdminParkingHistory = () => {
     const [transactions, setTransactions] = useState([]);
@@ -16,8 +17,7 @@ const AdminParkingHistory = () => {
 
     const [selectedTx, setSelectedTx] = useState(null);
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const token = localStorage.getItem('token') || localStorage.getItem('admin_token');
+    const token = sessionStorage.getItem('token') || sessionStorage.getItem('admin_token');
 
     const fetchTransactions = async (isManualRefresh = false) => {
         if (isManualRefresh) {
@@ -86,6 +86,7 @@ const AdminParkingHistory = () => {
                     <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#E2E6EE] border-t-[#26468A]"></div>
                 </div>
             )}
+            <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
                 <thead className="bg-[#F3F5F9] sticky top-0 z-10">
                     <tr className="text-[#667085] text-xs font-semibold uppercase tracking-wide border-b border-[#E2E6EE]">
@@ -153,6 +154,7 @@ const AdminParkingHistory = () => {
                     )}
                 </tbody>
             </table>
+            </div>
         </div>
     );
 

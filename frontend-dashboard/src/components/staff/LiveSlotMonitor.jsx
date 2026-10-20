@@ -3,6 +3,7 @@ import axios from 'axios';
 import { echo } from '../../services/echo';
 import { Map, Clock, ArrowRightLeft, X, AlertTriangle, CheckCircle } from 'lucide-react';
 import { parseWib } from '../../utils/time';
+import { API_URL } from '../../config';
 
 const LiveSlotMonitor = () => {
     const [activeTransactions, setActiveTransactions] = useState([]);
@@ -14,8 +15,7 @@ const LiveSlotMonitor = () => {
     const [overrideForm, setOverrideForm] = useState({ transaction_id: '', old_slot_code: '', plate: '', new_slot_id: '', reason: '' });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const token = localStorage.getItem('staff_token');
+    const token = sessionStorage.getItem('staff_token');
 
     const axiosInstance = axios.create({
         baseURL: API_URL,

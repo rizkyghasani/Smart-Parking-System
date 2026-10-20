@@ -5,14 +5,14 @@ import {
     Clock, Palette, Search, Eye, X, MapPin, Receipt
 } from 'lucide-react';
 import { wibDate, wibTime } from '../../utils/time';
+import { API_URL } from '../../config';
 
 const AdminManualTapOutHistory = () => {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedItem, setSelectedItem] = useState(null);
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const token = localStorage.getItem('admin_token');
+    const token = sessionStorage.getItem('admin_token');
 
     const axiosInstance = axios.create({
         baseURL: API_URL,

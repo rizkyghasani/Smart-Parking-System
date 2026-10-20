@@ -5,10 +5,10 @@ import {
     Clock, CheckCheck, FileText, Filter, ChevronLeft, ChevronRight 
 } from 'lucide-react';
 import { wibDate, wibTime } from '../../utils/time';
+import { API_URL } from '../../config';
 
 const NotificationPage = ({ notifications, refreshData, onNavigateToMonitor, onOpenManualVerification }) => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const token = localStorage.getItem('staff_token');
+    const token = sessionStorage.getItem('staff_token');
 
     // 🌟 STATE UNTUK FILTER DAN PAGINASI
     const [filterUnread, setFilterUnread] = useState(false);

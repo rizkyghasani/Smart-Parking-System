@@ -17,7 +17,7 @@ const StaffManagement = () => {
     const [isConfirming, setIsConfirming] = useState(false);
     const [confirmError, setConfirmError] = useState('');
 
-    const token = localStorage.getItem('admin_token');
+    const token = sessionStorage.getItem('admin_token');
     const headers = { Authorization: `Bearer ${token}` };
 
     useEffect(() => {

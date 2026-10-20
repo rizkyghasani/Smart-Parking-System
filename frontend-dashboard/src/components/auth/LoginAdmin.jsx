@@ -4,7 +4,7 @@ import { ShieldCheck } from 'lucide-react';
 import AuthLayout, { ADMIN_ACCENT } from './AuthLayout';
 import { API_URL } from '../../config';
 
-const LoginAdmin = ({ onLoginSuccess, onNavigateToRegister, onBackToUser }) => {
+const LoginAdmin = ({ onLoginSuccess, onBackToUser }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     
@@ -39,8 +39,12 @@ const LoginAdmin = ({ onLoginSuccess, onNavigateToRegister, onBackToUser }) => {
         });
 
             if (response.data.success) {
-                localStorage.setItem('admin_token', response.data.data.token);
-                localStorage.setItem('admin_user', JSON.stringify(response.data.data.user));
+                if (response.data.data.user?.role !== 'admin') {
+                    setErrorMessage('Akses ditolak. Akun ini bukan administrator.');
+                    return;
+                }
+                sessionStorage.setItem('admin_token', response.data.data.token);
+                sessionStorage.setItem('admin_user', JSON.stringify(response.data.data.user));
                 onLoginSuccess();
             }
         } catch (error) {
@@ -64,14 +68,6 @@ const LoginAdmin = ({ onLoginSuccess, onNavigateToRegister, onBackToUser }) => {
             accent={ADMIN_ACCENT}
             onBack={onBackToUser}
             backLabel="Kembali ke Monitor Parkir"
-            footer={
-                <>
-                    Belum memiliki akun?{' '}
-                    <button onClick={onNavigateToRegister} className={`font-semibold transition-colors ${ADMIN_ACCENT.link}`}>
-                        Daftar Admin Baru
-                    </button>
-                </>
-            }
         >
             {errorMessage && (
                 <div className="mb-4 p-3 bg-rose-50 border border-rose-100 text-rose-600 rounded-xl text-xs font-medium">

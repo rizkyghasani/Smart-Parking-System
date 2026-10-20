@@ -42,9 +42,9 @@ const LoginStaff = ({ onLoginSuccess, onBackToMain }) => {
                     return;
                 }
 
-                // Simpan token Bearer dan objek data staff ke localStorage browser
-                localStorage.setItem('staff_token', response.data.data.token);
-                localStorage.setItem('staff_user', JSON.stringify(response.data.data.user));
+                // Simpan token Bearer dan objek data staff ke sessionStorage browser
+                sessionStorage.setItem('staff_token', response.data.data.token);
+                sessionStorage.setItem('staff_user', JSON.stringify(response.data.data.user));
                 
                 alert(`👋 Selamat bertugas, ${response.data.data.user.name}!`);
                 onLoginSuccess();

@@ -18,7 +18,7 @@ const RevenueConfig = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });
 
-    const token = localStorage.getItem('admin_token');
+    const token = sessionStorage.getItem('admin_token');
 
     useEffect(() => {
         loadTarifData();

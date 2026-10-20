@@ -27,6 +27,8 @@ model = YOLO("yolov8n.pt")
 reader = easyocr.Reader(['en'], gpu=False) 
 
 # 3. GLOBAL STATE & QUEUE
+# EasyOCR tidak aman dipanggil bersamaan dari dua thread.
+ocr_lock = threading.Lock()
 ocr_queue = Queue(maxsize=1)
 ocr_results = {
     "text": "",
@@ -53,7 +55,8 @@ def ocr_worker():
             try:
                 gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
                 # Gunakan detail=0 agar langsung mendapatkan list teks
-                results = reader.readtext(gray, allowlist='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', detail=0)
+                with ocr_lock:
+                    results = reader.readtext(gray, allowlist='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', detail=0)
                 raw_text = " ".join(results).upper()
                 final_text = filter_plat_indonesia(raw_text)
 
@@ -132,6 +135,94 @@ async def process_frame(file: UploadFile = File(...)):
             "elapsed_ms": elapsed
         }
 
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# 7. DETEKSI DARI GAMBAR YANG DIUNGGAH (satu kali, sinkron)
+MAX_UPLOAD_BYTES = int(os.getenv("MAX_UPLOAD_BYTES", str(10 * 1024 * 1024)))
+MAX_SIDE = 1280
+ALLOW = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+
+
+def _ocr_plate(img):
+    """Baca plat dari sebuah gambar. Mengembalikan (plat, skor 0..1) atau ("", 0)."""
+    if img is None or img.size == 0:
+        return "", 0.0
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    h, w = gray.shape[:2]
+    # Perbesar potongan kecil agar huruf terbaca
+    if w < 600:
+        scale = 600 / max(w, 1)
+        gray = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+    variants = [gray, cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)]
+    best = ("", 0.0)
+    for v in variants:
+        with ocr_lock:
+            res = reader.readtext(v, allowlist=ALLOW, detail=1)
+        text = " ".join(r[1] for r in res).upper()
+        plate = filter_plat_indonesia(text)
+        if plate:
+            conf = float(np.mean([r[2] for r in res])) if res else 0.0
+            if conf >= best[1]:
+                best = (plate, conf)
+            if conf >= 0.6:
+                break
+    return best
+
+
+@app.post("/detect-image")
+def detect_image(file: UploadFile = File(...)):
+    """Deteksi plat dari satu foto (unggahan). Tidak mengirim apa pun ke Laravel;
+    hasilnya hanya dikembalikan ke pemanggil."""
+    t0 = time.perf_counter()
+    try:
+        data = file.file.read(MAX_UPLOAD_BYTES + 1)
+        if len(data) > MAX_UPLOAD_BYTES:
+            return {"status": "error", "message": "Ukuran gambar terlalu besar."}
+        img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+        if img is None:
+            return {"status": "error", "message": "File bukan gambar yang valid."}
+
+        h, w = img.shape[:2]
+        if max(h, w) > MAX_SIDE:
+            k = MAX_SIDE / max(h, w)
+            img = cv2.resize(img, None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
+            h, w = img.shape[:2]
+
+        plate, score, bbox, source = "", 0.0, None, "none"
+
+        # 1) Cari kendaraan, baca plat dari separuh bawahnya (sama seperti pemindaian kamera)
+        res = model(img, verbose=False)[0]
+        vehicles = []
+        for box in res.boxes:
+            if model.names[int(box.cls[0])] in ["car", "motorcycle", "bus", "truck"]:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                vehicles.append(((x2 - x1) * (y2 - y1), [x1, y1, x2, y2]))
+        vehicles.sort(reverse=True)
+        if vehicles:
+            _, bbox = vehicles[0]
+            x1, y1, x2, y2 = bbox
+            roi = img[y1 + int((y2 - y1) * 0.4):y2, x1:x2]
+            plate, score = _ocr_plate(roi)
+            if plate:
+                source = "vehicle"
+
+        # 2) Cadangan: foto close-up plat atau kendaraan tidak terdeteksi, baca seluruh gambar
+        if not plate:
+            plate, score = _ocr_plate(img)
+            if plate:
+                source = "full"
+
+        detections = [{"plate": plate, "bbox": bbox, "score": round(score, 2)}] if plate else []
+        return {
+            "status": "success",
+            "plate": plate,
+            "score": round(score, 2),
+            "source": source,
+            "detections": detections,
+            "vehicles_found": len(vehicles),
+            "elapsed_ms": round((time.perf_counter() - t0) * 1000),
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

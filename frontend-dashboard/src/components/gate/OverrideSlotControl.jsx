@@ -2,6 +2,7 @@ import { useState, useEffect, useImperativeHandle, forwardRef } from 'react';
 import axios from 'axios';
 import { AlertTriangle, CheckCircle, MapPin, X } from 'lucide-react';
 import SpatialParkingLayout from '../../SpatialParkingLayout';
+import { API_URL } from '../../config';
 
 // =============================================================
 // CONTROLLER SIMULASI PELANGGARAN / OVERRIDE SLOT — Konsol Gerbang
@@ -19,7 +20,6 @@ const OverrideSlotControl = forwardRef(({
     activeTransaction,
     onRefresh,
 }, ref) => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
     const [isChoosingManualSlot, setIsChoosingManualSlot] = useState(false);
     const [loadingAction, setLoadingAction] = useState(false);

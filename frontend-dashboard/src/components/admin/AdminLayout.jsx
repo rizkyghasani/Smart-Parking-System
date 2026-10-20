@@ -13,7 +13,6 @@ import AdminManualTapOutHistory from './AdminManualTapOutHistory';
 import AdminNotificationPage from './AdminNotificationPage';
 import AdminParkingOverview from './AdminParkingOverview';
 import AdminRevenueReport from './AdminRevenueReport';
-import { API_URL } from '../../config';
 import {
     Wallet,
     UserCog,
@@ -25,6 +24,7 @@ import {
     RefreshCcw,
     FileBarChart,
 } from 'lucide-react';
+import { API_URL } from '../../config';
 
 // ─────────────────────────────────────────────────────────
 // HELPERS
@@ -91,7 +91,9 @@ const TIME_FILTER_OPTIONS = [
 const AdminLayout = ({ onLogoutSuccess }) => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    // Di HP sidebar tertutup (jadi laci); di layar lebar terbuka seperti biasa.
+    const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 1024);
+    const closeSidebarOnMobile = () => { if (window.innerWidth < 1024) setSidebarOpen(false); };
 
     const [timeFilter, setTimeFilter] = useState('today');
     const [chartData, setChartData] = useState([]);
@@ -104,8 +106,8 @@ const AdminLayout = ({ onLogoutSuccess }) => {
     });
     const [loadingStats, setLoadingStats] = useState(false);
 
-    const adminUser = JSON.parse(localStorage.getItem('admin_user') || '{}');
-    const token = localStorage.getItem('admin_token');
+    const adminUser = JSON.parse(sessionStorage.getItem('admin_user') || '{}');
+    const token = sessionStorage.getItem('admin_token');
 
     useEffect(() => {
         if (activeTab === 'dashboard') {
@@ -159,8 +161,8 @@ const AdminLayout = ({ onLogoutSuccess }) => {
         } catch (error) {
             console.error('Sesi backend sudah kedaluwarsa.');
         } finally {
-            localStorage.removeItem('admin_token');
-            localStorage.removeItem('admin_user');
+            sessionStorage.removeItem('admin_token');
+            sessionStorage.removeItem('admin_user');
             setIsLoggingOut(false);
             alert('Anda telah keluar dari sistem secara aman.');
             onLogoutSuccess();
@@ -313,7 +315,10 @@ const AdminLayout = ({ onLogoutSuccess }) => {
     return (
         <div className="flex h-screen bg-[#F3F5F9] overflow-hidden">
             {/* ── SIDEBAR ──────────────────────────────────────────── */}
-            <aside className={`bg-white text-[#475467] flex flex-col justify-between shadow-sm border-r border-[#E2E6EE] transition-all duration-300 ease-in-out overflow-hidden ${sidebarOpen ? 'w-64' : 'w-0'}`}>
+            {sidebarOpen && (
+                <div className="fixed inset-0 z-30 bg-[#101828]/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+            )}
+            <aside className={`bg-white text-[#475467] flex flex-col justify-between shadow-sm border-r border-[#E2E6EE] transition-all duration-300 ease-in-out overflow-hidden fixed inset-y-0 left-0 z-40 lg:static lg:z-auto ${sidebarOpen ? 'w-64' : 'w-0'}`}>
                 <div>
                     <div className="p-5 border-b border-[#E2E6EE] flex items-center space-x-3 whitespace-nowrap">
                         <div className="w-8 h-8 rounded-lg bg-[#26468A] flex items-center justify-center font-bold text-white text-lg flex-shrink-0">P</div>
@@ -323,7 +328,7 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                         {NAV_ITEMS.map(({ key, label, icon: Icon }) => (
                             <button
                                 key={key}
-                                onClick={() => setActiveTab(key)}
+                                onClick={() => { setActiveTab(key); closeSidebarOnMobile(); }}
                                 className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center gap-3 ${activeTab === key ? 'bg-[#26468A]/10 text-[#26468A] shadow-sm font-semibold' : 'hover:bg-[#F3F5F9] text-[#667085] hover:text-[#101828]'}`}
                             >
                                 <Icon size={18} className="shrink-0 opacity-80" />
@@ -351,7 +356,7 @@ const AdminLayout = ({ onLogoutSuccess }) => {
 
             {/* ── MAIN CONTENT ─────────────────────────────────────── */}
             <main className="flex-1 flex flex-col overflow-y-auto min-w-0">
-                <header className="bg-white h-16 border-b border-[#E2E6EE] flex items-center justify-between px-6 shadow-sm flex-shrink-0">
+                <header className="bg-white h-16 border-b border-[#E2E6EE] flex items-center justify-between px-3 sm:px-6 shadow-sm flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => setSidebarOpen((prev) => !prev)}
@@ -364,7 +369,7 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                                     : <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />}
                             </svg>
                         </button>
-                        <span className="text-sm font-medium text-[#667085]">Sistem Parkir Cerdas &bull; Panel Admin</span>
+                        <span className="hidden sm:inline text-sm font-medium text-[#667085]">Sistem Parkir Cerdas &bull; Panel Admin</span>
                     </div>
                     <div className="flex items-center space-x-3">
                         <button
@@ -381,11 +386,11 @@ const AdminLayout = ({ onLogoutSuccess }) => {
                         </button>
                         <div className="flex items-center space-x-2 border-l border-[#E2E6EE] pl-4">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-sm text-[#101828] font-medium capitalize">Mode {adminUser.role || 'Administrator'}</span>
+                            <span className="hidden sm:inline text-sm text-[#101828] font-medium capitalize">Mode {adminUser.role || 'Administrator'}</span>
                         </div>
                     </div>
                 </header>
-                <div className="p-8 h-[calc(100vh-4rem)] overflow-y-auto">
+                <div className="p-3 sm:p-6 lg:p-8 h-[calc(100vh-4rem)] overflow-y-auto">
                     <div className="bg-white rounded-2xl shadow-sm border border-[#E2E6EE] min-h-full">
                         {renderContent()}
                     </div>

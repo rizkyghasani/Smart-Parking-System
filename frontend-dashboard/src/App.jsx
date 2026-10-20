@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import AdminLayout from './components/admin/AdminLayout';
 import LoginAdmin from './components/auth/LoginAdmin';
-import RegisterAdmin from './components/auth/RegisterAdmin';
 import LoginStaff from './components/auth/LoginStaff';
 import StaffLayout from './components/staff/StaffLayout.jsx';
 import CustomerDashboard from './components/customer/CustomerDashboard';
@@ -11,16 +10,21 @@ import LoginCustomer from './components/customer/LoginCustomer';
 import RegisterCustomer from './components/customer/RegisterCustomer';
 import GateSimulation from './GateSimulation';
 import { echo } from './services/echo.js';
-import { API_URL, AI_SERVICE_URL } from './config';
 import { wibTime, wibDateTime } from './utils/time';
 import CameraStream from './components/CameraStream';
 import {
   Car, Monitor, Activity, LogOut, Scan, RefreshCcw, AlertCircle, X, CheckCircle, Receipt,
-  Camera, CameraOff, HardHat, UserRound, ShieldCheck, TriangleAlert, MapPin, Ticket, LifeBuoy,
+  Camera, CameraOff, UserRound, TriangleAlert, MapPin, Ticket, LifeBuoy, SwitchCamera,
 } from 'lucide-react';
+import { API_URL, AI_URL, ADMIN_LOGIN_PATH, STAFF_LOGIN_PATH } from './config';
+import { installAxiosAuth, setUnauthorizedHandler, verifyRole, getToken } from './auth/session';
+import PlateUpload from './components/PlateUpload';
+import { openCamera, cameraErrorMessage } from './utils/camera';
 
-const AI_URL   = AI_SERVICE_URL;
 const INTERVAL = 3000;
+
+// Pasang interceptor token SEKARANG, sebelum komponen mana pun mengirim request.
+installAxiosAuth();
 
 // =============================================================
 // Font loader — Manrope (UI) + IBM Plex Mono (data terbaca-mesin:
@@ -287,11 +291,10 @@ function TicketModal({ open, onClose, input, setInput, preview, error, loading, 
 // =============================================================
 // Nav bar portal — pill mengambang, versi terang
 // =============================================================
-function PortalNavBar({ onSelectStaff, onSelectCustomer, onSelectAdmin }) {
+function PortalNavBar({ onSelectCustomer }) {
+  // Portal petugas dan panel admin sengaja tidak ditautkan dari halaman publik.
   const items = [
-    { key: 'staff',    label: 'Portal Petugas',   icon: HardHat,     onClick: onSelectStaff },
     { key: 'customer', label: 'Portal Pelanggan', icon: UserRound,   onClick: onSelectCustomer },
-    { key: 'admin',    label: 'Panel Admin',      icon: ShieldCheck, onClick: onSelectAdmin },
   ];
 
   return (
@@ -319,11 +322,67 @@ function PortalNavBar({ onSelectStaff, onSelectCustomer, onSelectAdmin }) {
   );
 }
 
+
+// =============================================================
+// ROUTING BERBASIS URL (tanpa library). Peran ditentukan oleh alamat halaman.
+// Login admin dan staff memakai alamat khusus yang tidak ditautkan dari halaman publik.
+// =============================================================
+const PAGE_PATHS = {
+  user: '/',
+  login: ADMIN_LOGIN_PATH,
+  admin_dashboard: '/admin',
+  login_staff: STAFF_LOGIN_PATH,
+  StaffLayout: '/staff',
+  customer_login: '/customer/masuk',
+  customer_register: '/customer/daftar',
+  CustomerDashboard: '/customer',
+};
+
+const pageFromPath = (path = window.location.pathname) => {
+  const clean = path.length > 1 ? path.replace(/\/+$/, '') : path;
+  const hit = Object.entries(PAGE_PATHS).find(([, p]) => p === clean);
+  return hit ? hit[0] : 'user';
+};
+
+// Dashboard yang dijaga: butuh token valid dengan peran yang tepat (dicek ke server).
+function RequireRole({ role, deniedTo, children }) {
+  const [state, setState] = useState('checking'); // checking | ok | denied
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const hadToken = !!getToken(role);
+      const r = await verifyRole(role);
+      if (!alive) return;
+      if (r.ok) { setState('ok'); return; }
+      // Gangguan jaringan: jangan keluarkan pengguna, cukup coba lagi nanti.
+      if (r.reason === 'network') { setState('ok'); return; }
+      deniedTo(hadToken);
+      setState('denied');
+    })();
+    return () => { alive = false; };
+  }, [role]);
+  if (state === 'ok') return children;
+  return (
+    <div className="flex h-screen w-full items-center justify-center bg-[#F3F5F9]">
+      <div className="text-lg font-semibold text-[#667085] animate-pulse" style={{ fontFamily: "'Manrope', sans-serif" }}>
+        Memeriksa akses...
+      </div>
+    </div>
+  );
+}
+
 // =============================================================
 // KOMPONEN UTAMA
 // =============================================================
 function App() {
-  const [currentPage, setCurrentPage] = useState('user');
+  const [currentPage, setPageState] = useState(() => pageFromPath());
+  const setCurrentPage = useCallback((page, { replace = false } = {}) => {
+    const path = PAGE_PATHS[page] ?? '/';
+    if (window.location.pathname !== path) {
+      window.history[replace ? 'replaceState' : 'pushState']({}, '', path);
+    }
+    setPageState(page);
+  }, []);
   const [slots,          setSlots]          = useState([]);
   const [candidates,     setCandidates]     = useState([]);
   const [loading,        setLoading]        = useState(false);
@@ -336,6 +395,9 @@ function App() {
   const [aiStatus,       setAiStatus]       = useState('idle');
   const [lastDebug,      setLastDebug]      = useState(null);
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
+  const [facing, setFacing] = useState('environment');
+  const [cameraError, setCameraError] = useState('');
+  const [gateSim, setGateSim] = useState({ open: false, mode: 'in' });
 
   const [showNoPlateBtn, setShowNoPlateBtn] = useState(false);
   const [ticketInput,    setTicketInput]    = useState('');
@@ -350,30 +412,23 @@ function App() {
   const streamRef = React.useRef(null);
   const videoRef = React.useRef(null);
 
-  const [isCheckingSession, setIsCheckingSession] = useState(true);
-
-  const [gateSim, setGateSim] = useState({ open: false, mode: 'in' });
-
+  // Sesi dipulihkan per tab dari sessionStorage; peran ditentukan oleh URL.
   useEffect(() => {
-        const adminToken = localStorage.getItem('admin_token');
-        const staffToken = localStorage.getItem('staff_token');
-        const customerToken = localStorage.getItem('customer_token');
+    // Token kedaluwarsa/dicabut di tengah pemakaian.
+    setUnauthorizedHandler((role) => {
+      setCurrentPage(role === 'customer' ? 'customer_login' : role === 'admin' ? 'login' : 'login_staff', { replace: true });
+    });
+    const onPop = () => setPageState(pageFromPath());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [setCurrentPage]);
 
-        if (adminToken) {
-            axios.defaults.headers.common['Authorization'] = `Bearer ${adminToken}`;
-            setCurrentPage('admin_dashboard');
-        } else if (staffToken) {
-            axios.defaults.headers.common['Authorization'] = `Bearer ${staffToken}`;
-            setCurrentPage('StaffLayout');
-        } else if (customerToken) {
-            axios.defaults.headers.common['Authorization'] = `Bearer ${customerToken}`;
-            setCurrentPage('CustomerDashboard');
-        } else {
-            delete axios.defaults.headers.common['Authorization'];
-        }
-
-        setIsCheckingSession(false);
-    }, []);
+  // Sudah login sebagai peran itu? Halaman masuk langsung diteruskan ke dashboard.
+  useEffect(() => {
+    if (currentPage === 'login' && getToken('admin')) setCurrentPage('admin_dashboard', { replace: true });
+    if (currentPage === 'login_staff' && getToken('staff')) setCurrentPage('StaffLayout', { replace: true });
+    if (currentPage === 'customer_login' && getToken('customer')) setCurrentPage('CustomerDashboard', { replace: true });
+  }, [currentPage, setCurrentPage]);
 
   useEffect(() => {
       fetchSlots();
@@ -408,14 +463,18 @@ function App() {
 
   const startCamera = async () => {
       if (!isCameraEnabled) return;
+      setCameraError('');
       try {
-          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          stopCamera();
+          const stream = await openCamera(facing);
           streamRef.current = stream;
           if (videoRef.current) {
               videoRef.current.srcObject = stream;
           }
       } catch (err) {
           console.error('Gagal akses kamera:', err);
+          setCameraError(cameraErrorMessage(err));
+          setIsCameraEnabled(false);
       }
   };
 
@@ -427,7 +486,7 @@ function App() {
       }
 
       return () => stopCamera();
-  }, [isCameraEnabled]);
+  }, [isCameraEnabled, facing]);
 
   const captureAndDetect = useCallback(async () => {
     const video = videoRef.current;
@@ -520,11 +579,21 @@ function App() {
       setAiStatus('idle');
 
       await fetchSlots();
-    } catch {
-      alert('Tap-in gagal. Pastikan backend aktif dan ada slot tersedia.');
+    } catch (error) {
+      console.error('Tap-in gagal:', error?.response?.status, error?.response?.data ?? error);
+      alert(error?.response?.data?.message || 'Tap-in gagal. Pastikan backend aktif dan ada slot tersedia.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Hasil baca plat dari foto yang diunggah.
+  const handleUploadResult = ({ plate, score, data }) => {
+    setDetectedPlate(plate);
+    setPlateScore(score);
+    setVehicleType('');
+    setAiStatus('found');
+    setLastDebug(data);
   };
 
   const handleNoPlateTapIn = async () => {
@@ -653,39 +722,21 @@ function App() {
     );
   };
 
-  if (isCheckingSession) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#F3F5F9]">
-        <div className="text-lg font-semibold text-[#667085] animate-pulse" style={{ fontFamily: "'Manrope', sans-serif" }}>
-          Membuka sesi...
-        </div>
-      </div>
-    );
-  }
-
   // ROUTING / PAGES RENDERING
   if (currentPage === 'login') {
     return (
       <LoginAdmin
         onLoginSuccess={() => setCurrentPage('admin_dashboard')}
-        onNavigateToRegister={() => setCurrentPage('register')}
         onBackToUser={() => setCurrentPage('user')}
-      />
-    );
-  }
-
-  if (currentPage === 'register') {
-    return (
-      <RegisterAdmin
-        onRegisterSuccess={() => setCurrentPage('login')}
-        onNavigateToLogin={() => setCurrentPage('login')}
       />
     );
   }
 
   if (currentPage === 'admin_dashboard') {
     return (
-      <AdminLayout onLogoutSuccess={() => setCurrentPage('user')} />
+      <RequireRole role="admin" deniedTo={(hadToken) => setCurrentPage(hadToken ? 'login' : 'user', { replace: true })}>
+        <AdminLayout onLogoutSuccess={() => setCurrentPage('user')} />
+      </RequireRole>
     );
   }
 
@@ -700,9 +751,12 @@ function App() {
 
   if (currentPage === 'StaffLayout') {
     return (
-      <StaffLayout
-        onLogoutSuccess={() => setCurrentPage('user')}
-      />
+      <RequireRole role="staff" deniedTo={(hadToken) => setCurrentPage(hadToken ? 'login_staff' : 'user', { replace: true })}>
+        <StaffLayout
+          onLogout={() => setCurrentPage('user')}
+          onLogoutSuccess={() => setCurrentPage('user')}
+        />
+      </RequireRole>
     );
   }
 
@@ -728,7 +782,9 @@ function App() {
 
   if (currentPage === 'CustomerDashboard') {
       return (
-          <CustomerDashboard onLogoutSuccess={() => setCurrentPage('user')} />
+          <RequireRole role="customer" deniedTo={() => setCurrentPage('customer_login', { replace: true })}>
+            <CustomerDashboard onLogoutSuccess={() => setCurrentPage('user')} />
+          </RequireRole>
       );
   }
 
@@ -737,7 +793,7 @@ function App() {
       <div className="max-w-6xl mx-auto py-10 px-5" style={{ fontFamily: "'Manrope', sans-serif" }}>
 
         {/* ── TOOLBAR ─────────────────────────────────────── */}
-        <div className="flex items-center justify-between pb-6 mb-8 border-b border-[#E2E6EE]">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 mb-8 border-b border-[#E2E6EE]">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#26468A] flex items-center justify-center shrink-0">
               <span className="text-white font-bold text-lg leading-none" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>P</span>
@@ -748,7 +804,7 @@ function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
                 onClick={() => setIsCameraEnabled(prev => !prev)}
                 className={`flex items-center gap-2 px-4 py-3 rounded-xl text-[13px] font-semibold border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
@@ -758,8 +814,18 @@ function App() {
                 }`}
             >
                 {isCameraEnabled ? <CameraOff size={15} /> : <Camera size={15} />}
-                <span className="hidden md:inline">{isCameraEnabled ? 'Matikan kamera' : 'Nyalakan kamera'}</span>
+                <span>{isCameraEnabled ? 'Matikan kamera' : 'Nyalakan kamera'}</span>
             </button>
+
+            {isCameraEnabled && (
+              <button
+                onClick={() => setFacing(f => (f === 'environment' ? 'user' : 'environment'))}
+                title="Ganti kamera depan/belakang"
+                className="flex items-center justify-center w-11 h-11 rounded-xl border border-[#E2E6EE] bg-white text-[#475467] hover:border-[#26468A]/40 hover:text-[#26468A] transition-colors"
+              >
+                <SwitchCamera size={17} />
+              </button>
+            )}
 
             <button
               onClick={() => handleTapIn()}
@@ -815,7 +881,7 @@ function App() {
                         <div>
                           <p className="text-[13px] font-semibold text-[#CBD3DE]">Kamera nonaktif</p>
                           <p className="text-[12px] text-[#5B6472] mt-1 max-w-[240px] leading-relaxed">
-                            Mode pengembangan. Nyalakan kamera untuk memulai simulasi deteksi plat.
+                            {cameraError || 'Nyalakan kamera untuk memindai plat, atau unggah foto kendaraan.'}
                           </p>
                         </div>
                     </div>
@@ -852,6 +918,8 @@ function App() {
               )}
 
               <ConfBar score={plateScore} />
+
+              <PlateUpload onResult={handleUploadResult} className="mt-4" label="Unggah foto kendaraan" />
 
               {lastDebug && (
                 <details className="mt-auto pt-4 text-[11px]">
@@ -898,9 +966,7 @@ return (
     <div className="relative min-h-screen bg-[#F3F5F9]">
       <FontLoader />
       <PortalNavBar
-        onSelectStaff={() => setCurrentPage('login_staff')}
         onSelectCustomer={() => setCurrentPage('customer_login')}
-        onSelectAdmin={() => setCurrentPage('login')}
       />
 
       {/* <GateSimulation

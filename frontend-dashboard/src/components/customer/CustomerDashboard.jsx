@@ -6,6 +6,7 @@ import TopUpModal from './TopUpModal';
 import { User, Car, ShieldCheck, LogOut, RefreshCw, LayoutDashboard, History, Map as MapIcon, Wallet, Plus } from 'lucide-react';
 import { wibDate, wibDateTime } from '../../utils/time';
 import { formatRupiah } from '../../utils/formatRupiah';
+import { API_URL } from '../../config';
 
 const FONT_STYLE = `@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap');`;
 
@@ -21,17 +22,16 @@ const CustomerDashboard = ({ onLogoutSuccess }) => {
     const [topupHistory, setTopupHistory] = useState([]);
     const [topupLoading, setTopupLoading] = useState(false);
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
     const handleLogout = () => {
-        localStorage.removeItem('customer_token');
+        sessionStorage.removeItem('customer_token');
         onLogoutSuccess();
     };
 
     // 🌟 Pindahkan fungsi fetchDashboard ke luar agar bisa dipanggil ulang oleh child
     const fetchDashboardData = async () => {
         try {
-            const token = localStorage.getItem('customer_token');
+            const token = sessionStorage.getItem('customer_token');
             if (!token) {
                 handleLogout();
                 return;
@@ -55,7 +55,7 @@ const CustomerDashboard = ({ onLogoutSuccess }) => {
 
     // 🌟 Fungsi ambil riwayat top-up (dipakai di tab Profil)
     const fetchTopUpHistory = async () => {
-        const token = localStorage.getItem('customer_token');
+        const token = sessionStorage.getItem('customer_token');
         if (!token) return;
         setTopupLoading(true);
         try {

@@ -8,11 +8,14 @@ import ManualVerificationModal from './ManualVerificationModal';
 import ManualTapOutHistory from './ManualTapOutHistory';
 import NotificationPage from './NotificationPage';
 import { LayoutDashboard, List, Bell, Car, X, LogOut, FileText, ClipboardList } from 'lucide-react';
+import { API_URL } from '../../config';
 
 const StaffLayout = ({ onLogout }) => {
     const [activeTab, setActiveTab] = useState('dashboard');
     const [isNotifOpen, setIsNotifOpen] = useState(false);
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    // Di HP sidebar tertutup (jadi laci); di layar lebar terbuka seperti biasa.
+    const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth >= 1024);
+    const closeSidebarOnMobile = () => { if (window.innerWidth < 1024) setSidebarOpen(false); };
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const [showStnkModal, setShowStnkModal] = useState(false);
@@ -27,9 +30,8 @@ const StaffLayout = ({ onLogout }) => {
     const [manualPlateInput, setManualPlateInput] = useState('');
     const [loadingManualTapOut, setLoadingManualTapOut] = useState(false);
 
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const token = localStorage.getItem('staff_token');
-    const staffUser = JSON.parse(localStorage.getItem('staff_user') || '{}');
+    const token = sessionStorage.getItem('staff_token');
+    const staffUser = JSON.parse(sessionStorage.getItem('staff_user') || '{}');
 
     const axiosInstance = axios.create({
         baseURL: API_URL,
@@ -111,8 +113,11 @@ const StaffLayout = ({ onLogout }) => {
 
     const handleLogout = async () => {
         setIsLoggingOut(true);
-        localStorage.removeItem('staff_token');
-        localStorage.removeItem('staff_user');
+        try {
+            await axios.post(`${API_URL}/admin/auth/logout`, {}, { headers: { Authorization: `Bearer ${token}` } });
+        } catch { /* token mungkin sudah tidak valid; tetap keluar */ }
+        sessionStorage.removeItem('staff_token');
+        sessionStorage.removeItem('staff_user');
         setIsLoggingOut(false);
         if (typeof onLogout === 'function') {
             onLogout();
@@ -201,7 +206,10 @@ const StaffLayout = ({ onLogout }) => {
 
     return (
         <div className="flex h-screen bg-[#F3F5F9] overflow-hidden">
-            <aside className={`bg-white text-[#475467] flex flex-col justify-between shadow-sm border-r border-[#E2E6EE] transition-all duration-300 ease-in-out overflow-hidden ${sidebarOpen ? 'w-64' : 'w-0'}`}>
+            {sidebarOpen && (
+                <div className="fixed inset-0 z-30 bg-[#101828]/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+            )}
+            <aside className={`bg-white text-[#475467] flex flex-col justify-between shadow-sm border-r border-[#E2E6EE] transition-all duration-300 ease-in-out overflow-hidden fixed inset-y-0 left-0 z-40 lg:static lg:z-auto ${sidebarOpen ? 'w-64' : 'w-0'}`}>
                 <div>
                     <div className="p-5 border-b border-[#E2E6EE] flex items-center space-x-3 whitespace-nowrap">
                         <div className="w-8 h-8 rounded-lg bg-[#C97A1D] flex items-center justify-center font-bold text-white text-lg flex-shrink-0">S</div>
@@ -211,7 +219,7 @@ const StaffLayout = ({ onLogout }) => {
                         {navItems.map(({ key, label, icon }) => (
                         <button
                             key={key}
-                            onClick={() => setActiveTab(key)}
+                            onClick={() => { setActiveTab(key); closeSidebarOnMobile(); }}
                             className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-all whitespace-nowrap flex items-center justify-between cursor-pointer ${activeTab === key ? 'bg-[#C97A1D]/10 text-[#C97A1D] shadow-sm font-semibold' : 'hover:bg-[#F3F5F9] text-[#667085] hover:text-[#101828]'}`}
                         >
                             <div className="flex items-center gap-3">
@@ -237,7 +245,7 @@ const StaffLayout = ({ onLogout }) => {
             </aside>
 
             <main className="flex-1 flex flex-col overflow-y-auto min-w-0">
-                <header className="bg-white h-16 border-b border-[#E2E6EE] flex items-center justify-between px-6 shadow-sm flex-shrink-0">
+                <header className="bg-white h-16 border-b border-[#E2E6EE] flex items-center justify-between px-3 sm:px-6 shadow-sm flex-shrink-0">
                     <div className="flex items-center gap-4">
                         <button onClick={() => setSidebarOpen(prev => !prev)} className="p-2 rounded-lg hover:bg-[#EEF1F5] text-[#667085] hover:text-[#101828] transition-all cursor-pointer">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -264,7 +272,7 @@ const StaffLayout = ({ onLogout }) => {
                         </div>
                     </div>
                 </header>
-                <div className="p-8 h-[calc(100vh-4rem)] overflow-y-auto">
+                <div className="p-3 sm:p-6 lg:p-8 h-[calc(100vh-4rem)] overflow-y-auto">
                     {renderContent()}
                 </div>
             </main>

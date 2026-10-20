@@ -4,13 +4,14 @@ import { RefreshCcw, Eye } from 'lucide-react';
 import SpatialParkingLayout from '../../SpatialParkingLayout';
 import { API_URL } from '../../config';
 
+
 const AdminParkingOverview = () => {
     const [slots, setSlots] = useState([]);
     const [candidates, setCandidates] = useState([]);
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const token = localStorage.getItem('admin_token');
+    const token = sessionStorage.getItem('admin_token');
 
     const fetchOverview = useCallback(async () => {
         setLoading(true);

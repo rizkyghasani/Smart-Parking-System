@@ -9,8 +9,8 @@ import {
     TrendingUp, Activity, PieChart as DonutIcon, CalendarDays
 } from 'lucide-react';
 import { todayWib, addDaysWib, monthFirstWib } from '../../utils/time';
+import { API_URL } from '../../config';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
 const formatRupiah = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
 
@@ -91,7 +91,7 @@ export default function AdminRevenueReport() {
     const [metric, setMetric] = useState('pendapatan'); // 'pendapatan' | 'transaksi'
     const [donutHovered, setDonutHovered] = useState(false);
 
-    const token = localStorage.getItem('admin_token');
+    const token = sessionStorage.getItem('admin_token');
     const authHeader = { headers: { Authorization: `Bearer ${token}` } };
 
     const applyPreset = (key) => {
@@ -423,6 +423,7 @@ export default function AdminRevenueReport() {
                     {/* Breakdown member vs non-member */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                         <h3 className="font-bold text-gray-700 mb-4">Breakdown Member vs Non-Member</h3>
+                        <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="text-left text-gray-400 border-b">
@@ -434,11 +435,13 @@ export default function AdminRevenueReport() {
                                 <tr><td className="py-2">Non-Member</td><td>{report.breakdown_member.non_member.jumlah_transaksi}</td><td>{formatRupiah(report.breakdown_member.non_member.total_pendapatan)}</td></tr>
                             </tbody>
                         </table>
+                        </div>
                     </div>
 
                     {/* Breakdown per periode */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                         <h3 className="font-bold text-gray-700 mb-4">Pendapatan per Hari</h3>
+                        <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="text-left text-gray-400 border-b">
@@ -453,11 +456,13 @@ export default function AdminRevenueReport() {
                                 ))}
                             </tbody>
                         </table>
+                        </div>
                     </div>
 
                     {/* Breakdown per tarif */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                         <h3 className="font-bold text-gray-700 mb-4">Breakdown per Tarif Berlaku</h3>
+                        <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="text-left text-gray-400 border-b">
@@ -472,6 +477,7 @@ export default function AdminRevenueReport() {
                                 ))}
                             </tbody>
                         </table>
+                        </div>
                     </div>
 
                     {/* Detail transaksi */}

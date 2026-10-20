@@ -17,7 +17,7 @@ const LoginCustomer = ({ onLoginSuccess, onNavigateToRegister, onBack }) => {
         setIsLoading(true);
         try {
             const res = await axios.post(`${API_URL}/customer/login`, { email, password });
-            localStorage.setItem('customer_token', res.data.token);
+            sessionStorage.setItem('customer_token', res.data.token);
             onLoginSuccess();
         } catch (err) {
             setError(err.response?.data?.message || 'Login gagal. Periksa kembali email atau password Anda.');

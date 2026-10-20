@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { normalizePlate } from '../../utils/plate';
-import { AI_SERVICE_URL } from '../../config';
 import { X, Scan, CheckCircle, AlertTriangle, RefreshCcw, ShieldCheck, FlaskConical, CameraOff } from 'lucide-react';
+import { AI_URL } from '../../config';
+import PlateUpload from '../PlateUpload';
+import { openCamera, cameraErrorMessage } from '../../utils/camera';
 
-const AI_URL = AI_SERVICE_URL;
 const INTERVAL = 3000;
+const SIMULATION_ENABLED = import.meta.env.DEV || import.meta.env.VITE_ENABLE_SIMULATION === 'true';
 const NO_DETECT_TIMEOUT = 15000;
 const VERIFY_DELAY = 900;
 const SUCCESS_DELAY = 1400;
@@ -37,6 +39,7 @@ const CustomerPlateVerificationModal = ({ isOpen, registeredPlate, onClose, onVe
     const [showSimulation, setShowSimulation] = useState(false);
     const [simInput, setSimInput] = useState('');
     const [simResult, setSimResult] = useState('');
+    const [cameraMsg, setCameraMsg] = useState('');
 
     const videoRef = useRef(null);
     const streamRef = useRef(null);
@@ -44,24 +47,15 @@ const CustomerPlateVerificationModal = ({ isOpen, registeredPlate, onClose, onVe
     const registeredNorm = normalizePlate(registeredPlate);
 
     const startCamera = useCallback(async () => {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            setPhase('nodetect');
-            return;
-        }
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                    facingMode: 'user'
-                }
-            });
+            const stream = await openCamera('environment');
             streamRef.current = stream;
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
             }
         } catch (err) {
             console.error('Gagal akses kamera:', err);
+            setCameraMsg(cameraErrorMessage(err));
             setPhase('nodetect');
         }
     }, []);
@@ -218,7 +212,7 @@ const CustomerPlateVerificationModal = ({ isOpen, registeredPlate, onClose, onVe
                                 <div>
                                     <p className="text-[13px] font-semibold text-[#CBD3DE]">Kamera tidak aktif</p>
                                     <p className="text-[12px] text-[#5B6472] mt-1 max-w-[240px] leading-relaxed">
-                                        Tidak ada plat terbaca dalam batas waktu. Silakan coba lagi.
+                                        {cameraMsg || 'Tidak ada plat terbaca dalam batas waktu. Silakan coba lagi, atau unggah foto plat.'}
                                     </p>
                                 </div>
                             </div>
@@ -305,7 +299,20 @@ const CustomerPlateVerificationModal = ({ isOpen, registeredPlate, onClose, onVe
                         </div>
                     ) : null}
 
-                    {/* Mode Simulasi (Dev) */}
+                    {/* Unggah foto plat sebagai alternatif kamera */}
+                    {(phase === 'scanning' || phase === 'nodetect' || phase === 'denied') && (
+                        <PlateUpload
+                            label="Unggah foto plat"
+                            onResult={({ plate, score }) => {
+                                setDetectedPlate(plate.toUpperCase());
+                                setPlateScore(Math.round((score ?? 0) * 100));
+                                setPhase('verifying');
+                            }}
+                        />
+                    )}
+
+                    {/* Mode Simulasi: hanya dev, atau produksi bila VITE_ENABLE_SIMULATION=true (melewati verifikasi plat!) */}
+                    {SIMULATION_ENABLED && (
                     <div className="border border-dashed border-[#C1C9D4] rounded-2xl p-4">
                         <button
                             onClick={() => setShowSimulation((prev) => !prev)}
@@ -365,6 +372,7 @@ const CustomerPlateVerificationModal = ({ isOpen, registeredPlate, onClose, onVe
                             </div>
                         )}
                     </div>
+                    )}
                 </div>
 
                 {/* Footer */}
