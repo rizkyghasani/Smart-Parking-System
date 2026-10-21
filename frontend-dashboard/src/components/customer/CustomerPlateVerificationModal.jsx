@@ -44,6 +44,7 @@ const CustomerPlateVerificationModal = ({ isOpen, registeredPlate, onClose, onVe
     const videoRef = useRef(null);
     const streamRef = useRef(null);
     const notifiedRef = useRef(false);
+    const inFlightRef = useRef(false);
     const registeredNorm = normalizePlate(registeredPlate);
 
     const startCamera = useCallback(async () => {
@@ -73,6 +74,8 @@ const CustomerPlateVerificationModal = ({ isOpen, registeredPlate, onClose, onVe
     const captureAndDetect = useCallback(async () => {
         const video = videoRef.current;
         if (!video || video.readyState < 4) return;
+        if (inFlightRef.current) return; // jangan menumpuk request
+        inFlightRef.current = true;
 
         setIsProcessing(true);
         const canvas = document.createElement('canvas');
@@ -81,11 +84,13 @@ const CustomerPlateVerificationModal = ({ isOpen, registeredPlate, onClose, onVe
         const ctx = canvas.getContext('2d');
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         canvas.toBlob(async (blob) => {
+            if (!blob) { inFlightRef.current = false; setIsProcessing(false); return; }
             const form = new FormData();
             form.append('file', blob, 'frame.jpg');
             try {
-                const res = await axios.post(`${AI_URL}/process-frame`, form);
+                const res = await axios.post(`${AI_URL}/process-frame`, form, { timeout: 15000 });
                 const data = res.data;
+                if (data.status === 'busy') return;
                 if (data.detections?.length > 0) {
                     const best = data.detections.reduce((a, b) => (a.score > b.score ? a : b));
                     if (best.plate) {
@@ -97,6 +102,7 @@ const CustomerPlateVerificationModal = ({ isOpen, registeredPlate, onClose, onVe
             } catch {
                 // Abaikan, terus memindai
             } finally {
+                inFlightRef.current = false;
                 setIsProcessing(false);
             }
         }, 'image/jpeg', 0.92);

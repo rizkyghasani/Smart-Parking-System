@@ -397,7 +397,6 @@ function App() {
   const [isCameraEnabled, setIsCameraEnabled] = useState(false);
   const [facing, setFacing] = useState('environment');
   const [cameraError, setCameraError] = useState('');
-  const [gateSim, setGateSim] = useState({ open: false, mode: 'in' });
 
   const [showNoPlateBtn, setShowNoPlateBtn] = useState(false);
   const [ticketInput,    setTicketInput]    = useState('');
@@ -409,8 +408,11 @@ function App() {
   const [activeTransaction, setActiveTransaction] = useState(null);
   const overrideRef = useRef(null);
 
+  const inFlightRef = useRef(false); // true selama satu frame masih diproses server
   const streamRef = React.useRef(null);
   const videoRef = React.useRef(null);
+
+  const [gateSim, setGateSim] = useState({ open: false, mode: 'in' });
 
   // Sesi dipulihkan per tab dari sessionStorage; peran ditentukan oleh URL.
   useEffect(() => {
@@ -491,6 +493,9 @@ function App() {
   const captureAndDetect = useCallback(async () => {
     const video = videoRef.current;
     if (!isCameraEnabled || !video || video.readyState < 4) return;
+    // Jangan kirim frame baru selagi yang sebelumnya belum selesai (mencegah antrean menumpuk).
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
 
     setIsAiProcessing(true);
     setAiStatus('scanning');
@@ -502,11 +507,13 @@ function App() {
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     canvas.toBlob(async (blob) => {
+      if (!blob) { inFlightRef.current = false; setIsAiProcessing(false); return; }
       const form = new FormData();
       form.append('file', blob, 'frame.jpg');
       try {
-        const res  = await axios.post(`${AI_URL}/process-frame`, form);
+        const res  = await axios.post(`${AI_URL}/process-frame`, form, { timeout: 15000 });
         const data = res.data;
+        if (data.status === 'busy') return; // server masih memproses frame lain; abaikan
         setLastDebug(data);
         if (data.detections?.length > 0) {
           const best = data.detections.reduce((a, b) => (a.score > b.score ? a : b));
@@ -522,6 +529,7 @@ function App() {
       } catch {
         setAiStatus('error');
       } finally {
+        inFlightRef.current = false;
         setIsAiProcessing(false);
       }
     }, 'image/jpeg', 0.92);
