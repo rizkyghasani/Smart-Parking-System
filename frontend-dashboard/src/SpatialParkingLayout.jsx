@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Car, LogOut, ArrowUp, ArrowDown, Activity, RefreshCcw, Calculator, X, LifeBuoy, Lock, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Car, LogOut, ArrowUp, ArrowDown, Activity, RefreshCcw, Calculator, X, LifeBuoy, Lock, AlertTriangle, ShieldAlert, Clock } from 'lucide-react';
+import { wibDateTime } from './utils/time';
 
 // 🌟 PERBAIKAN: Tambahkan onRequestManualTapOut pada parameter props
 const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelectedSlot, handleTapOut, onRefreshCandidates, isCustomerView = false, onSlotClick, onRequestManualTapOut, readOnly = false, showDijkstraPanel = false }) => {
@@ -63,6 +64,55 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
         } finally {
             setIsRequestingHelp(false);
         }
+    };
+
+    // 🌟 BARU: transaksi aktif (kendaraan yang memarkir) milik sebuah slot
+    const getActiveTransaction = (slot) => slot?.active_transaction || null;
+
+    // Kendaraan tanpa plat disimpan sebagai "{kode_slot}-UNKNOWN" oleh sistem
+    const isUnknownPlate = (plate) => !plate || /-UNKNOWN$/i.test(plate);
+
+    // 🌟 BARU: kartu informasi kendaraan (plat, jam masuk, kartu akses)
+    const renderVehicleInfo = (slot) => {
+        const tx = getActiveTransaction(slot);
+        const plate = tx?.plate_number;
+
+        return (
+            <div className="bg-white border border-[#E2E6EE] rounded-xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <p className="text-[10px] text-[#98A2B3] font-bold uppercase tracking-widest">Kendaraan Terparkir</p>
+                    <div className="flex items-center gap-2">
+                        {tx?.requires_manual_verification && (
+                            <span className="px-2 py-0.5 rounded-md bg-[#C97A1D]/10 text-[#C97A1D] text-[10px] font-bold uppercase tracking-widest">Verifikasi Manual</span>
+                        )}
+                        {tx?.is_violation && (
+                            <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-600 text-[10px] font-bold uppercase tracking-widest">Pelanggaran</span>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Car size={16} className="text-rose-500 shrink-0" />
+                    <p className="font-mono font-black text-base sm:text-lg tracking-widest text-[#101828] truncate">
+                        {tx ? (isUnknownPlate(plate) ? 'TIDAK TERCATAT' : plate) : 'DATA TIDAK TERSEDIA'}
+                    </p>
+                </div>
+
+                {tx && (
+                    <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-[#667085] font-medium">
+                        <span className="inline-flex items-center gap-1.5">
+                            <Clock size={12} className="text-[#98A2B3]" />
+                            Masuk: <span className="font-bold text-[#475467]">{wibDateTime(tx.entry_time)}</span>
+                        </span>
+                        {/* {tx.card_id && (
+                            <span>
+                                Kartu: <span className="font-bold text-[#475467]">{tx.card_id}</span>
+                            </span>
+                        )} */}
+                    </div>
+                )}
+            </div>
+        );
     };
 
     const renderCalculationDetails = (candidate) => {
@@ -290,7 +340,26 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
             </div>
             )}
 
-            {!isCustomerView && !readOnly && (
+            {isCustomerView || readOnly ? (
+            <div className="p-6 bg-white border-t border-[#E2E6EE] mt-auto">
+                {selectedSlot && (selectedSlot.status === 'occupied' || selectedSlot.status === 'violation') ? (
+                    <div className="bg-[#F3F5F9] p-4 rounded-2xl border border-[#E2E6EE] space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-[10px] text-[#98A2B3] font-bold uppercase tracking-widest">Slot Terpilih</p>
+                                <p className="text-2xl font-black text-[#101828]">{selectedSlot.slot_code}</p>
+                            </div>
+                            <span className="px-3 py-1 rounded-lg bg-rose-50 border border-rose-100 text-rose-600 text-[10px] font-bold uppercase tracking-widest">Terisi</span>
+                        </div>
+                        {!isCustomerView && renderVehicleInfo(selectedSlot)}
+                    </div>
+                ) : (
+                    <p className="text-center text-xs text-[#667085] font-medium">
+                        Klik slot pada denah untuk melihat status slot.
+                    </p>
+                )}
+            </div>
+            ) : (
             <div className="p-6 bg-white border-t border-[#E2E6EE] mt-auto">
                 {selectedSlot && selectedSlot.status === 'violation' ? (
                     <div className="bg-[#F3F5F9] p-4 rounded-2xl border border-rose-200 space-y-3">
@@ -303,6 +372,7 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                                 <p className="text-2xl font-black text-[#101828]">{selectedSlot.slot_code}</p>
                             </div>
                         </div>
+                        {renderVehicleInfo(selectedSlot)}
                         <div className="bg-rose-50 border border-rose-100 rounded-xl p-3">
                             <p className="text-xs text-rose-600 font-bold flex items-center gap-2">
                                 <AlertTriangle size={14} /> Slot Terkunci — Menunggu Override Petugas
@@ -321,6 +391,7 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                                 <p className="text-2xl font-black text-[#101828]">{selectedSlot.slot_code}</p>
                             </div>
                         </div>
+                        {renderVehicleInfo(selectedSlot)}
                         <div className="bg-[#C97A1D]/10 border border-[#C97A1D]/20 rounded-xl p-3">
                             <p className="text-xs text-[#C97A1D] font-bold flex items-center gap-2">
                                 <AlertTriangle size={14} /> Transaksi Terkunci — Menunggu Override Petugas
@@ -339,6 +410,7 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                                 <p className="text-2xl font-black text-[#101828]">{selectedSlot.slot_code}</p>
                             </div>
                         </div>
+                        {renderVehicleInfo(selectedSlot)}
                         <button
                             onClick={handleRequestHelp}
                             disabled={isRequestingHelp}
@@ -355,7 +427,7 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                     </div>
                 ) : selectedSlot && selectedSlot.status === 'occupied' ? (
                     <div className="bg-[#F3F5F9] p-4 rounded-2xl border border-[#E2E6EE] space-y-3">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
                             <div>
                                 <p className="text-[10px] text-[#98A2B3] font-bold uppercase tracking-widest">Slot Terpilih</p>
                                 <p className="text-2xl font-black text-[#101828]">{selectedSlot.slot_code}</p>
@@ -364,6 +436,8 @@ const SpatialParkingLayout = ({ slots, candidates = [], selectedSlot, setSelecte
                                 <LogOut size={16} /> Proses Keluar
                             </button>
                         </div>
+
+                        {renderVehicleInfo(selectedSlot)}
 
                         {onRequestManualTapOut && (
                             <button

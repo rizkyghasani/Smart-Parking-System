@@ -308,7 +308,7 @@ const CustomerPlateVerificationModal = ({ isOpen, registeredPlate, onClose, onVe
                     {/* Unggah foto plat sebagai alternatif kamera */}
                     {(phase === 'scanning' || phase === 'nodetect' || phase === 'denied') && (
                         <PlateUpload
-                            label="Unggah foto plat"
+                            label="Unggah foto Kendaraan"
                             onResult={({ plate, score }) => {
                                 setDetectedPlate(plate.toUpperCase());
                                 setPlateScore(Math.round((score ?? 0) * 100));

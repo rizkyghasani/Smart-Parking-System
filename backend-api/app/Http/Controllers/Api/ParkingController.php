@@ -37,6 +37,22 @@ class ParkingController extends Controller
             }
         ])->get();
         $candidates = $this->dijkstraService->getAllCandidatesWithDijkstra();
+
+        // Transaksi aktif (kendaraan yang masih parkir) untuk setiap slot.
+        // Dipakai frontend untuk menampilkan plat kendaraan saat slot diklik.
+        $activeTransactions = ParkingTransaction::whereNull('exit_time')
+            ->orderBy('id')
+            ->get([
+                'id', 'parking_slot_id', 'plate_number', 'entry_time', 'card_id',
+                'requires_manual_verification', 'is_violation'
+            ])
+            ->groupBy('parking_slot_id')
+            ->map(fn ($group) => $group->sortByDesc('id')->first()?->toArray());
+
+        foreach ($slots as $slot) {
+            $slot->active_transaction = $activeTransactions->get($slot->id);
+        }
+
         // UPDATE: priority_weight sudah dihapus, kita urutkan berdasarkan slot_code (S1, S2, dst.)
         //$slots = ParkingSlot::orderBy('slot_code', 'asc')->get();
         return response()->json([

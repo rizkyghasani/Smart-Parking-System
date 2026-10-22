@@ -48,12 +48,30 @@ class SlotUpdated implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
+        $activeTransaction = null;
+
+        if (in_array($this->slot->status, ['occupied', 'violation'], true)) {
+            $transaction = \App\Models\ParkingTransaction::where('parking_slot_id', $this->slot->id)
+                ->whereNull('exit_time')
+                ->latest()
+                ->first([
+                    'id', 'parking_slot_id', 'plate_number', 'entry_time', 'card_id',
+                    'requires_manual_verification', 'is_violation'
+                ]);
+
+            if ($transaction) {
+                $activeTransaction = $transaction->toArray();
+            }
+        }
+
         return [
             'slot' => [
                 'id' => $this->slot->id,
                 'slot_code' => $this->slot->slot_code,
                 'status' => $this->slot->status,
-                'priority_weight' => $this->slot->priority_weight,
+                'x_coord' => $this->slot->x_coord,
+                'y_coord' => $this->slot->y_coord,
+                'active_transaction' => $activeTransaction,
             ],
         ];
     }
